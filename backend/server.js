@@ -1,0 +1,300 @@
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import Interaction from './models/Interaction.js';
+
+// Load environment variables
+const envResult = dotenv.config();
+
+if (envResult.error) {
+  console.warn('⚠️ Warning loading .env file:', envResult.error.message);
+} else {
+  console.log('✅ Environment variables loaded from .env');
+}
+
+const app = express();
+
+// Configuration from .env (lines 7-15)
+// Line 8-9: Server Configuration
+const PORT = process.env.PORT || 5000;
+
+// Line 11-12: CORS Configuration
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Instagram Webhook Secret (legacy name, kept for compatibility)
+const INSTAGRAM_WEBHOOK_SECRET = process.env.INSTAGRAM_WEBHOOK_SECRET;
+
+// Verify Token for webhook verification (preferred)
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
+// MongoDB and other configurations
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/axtronet-instagram';
+
+// Instagram Page Access Token (optional, for sending messages)
+const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN;
+
+// Auto Reply Configuration
+const AUTO_REPLY_ENABLED = process.env.AUTO_REPLY_ENABLED !== 'false';
+
+// Middleware
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// MongoDB Connection
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB successfully');
+  })
+  .catch((error) => {
+    console.error('❌ MongoDB connection error:', error.message);
+  });
+
+// Health Check Endpoint
+app.get('/health', (req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    mongodb: isConnected ? 'connected' : 'disconnected'
+  });
+});
+
+// Get all interactions endpoint
+app.get('/api/interactions', async (req, res) => {
+  try {
+    const interactions = await Interaction.find()
+      .sort({ timestamp: -1 })
+      .limit(100); // Limit to last 100 interactions
+    
+    res.json({
+      success: true,
+      count: interactions.length,
+      data: interactions
+    });
+  } catch (error) {
+    console.error('Error fetching interactions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching interactions',
+      error: error.message
+    });
+  }
+});
+
+// Get interaction statistics
+app.get('/api/stats', async (req, res) => {
+  try {
+    const totalInteractions = await Interaction.countDocuments();
+    const comments = await Interaction.countDocuments({ type: 'comment' });
+    const reactions = await Interaction.countDocuments({ type: 'reaction' });
+    
+    // Get interactions from last 24 hours
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const recentInteractions = await Interaction.countDocuments({
+      timestamp: { $gte: yesterday }
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        total: totalInteractions,
+        comments,
+        reactions,
+        last24Hours: recentInteractions
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching statistics',
+      error: error.message
+    });
+  }
+});
+
+// Webhook endpoint for Instagram
+app.post('/webhook', async (req, res) => {
+  try {
+    console.log('📥 Webhook received:', req.body);
+    
+    // Handle different types of Instagram interactions
+    const { object, entry } = req.body;
+    
+    if (object === 'instagram' && entry) {
+      for (const item of entry) {
+        if (item.messaging) {
+          // Handle direct messaging
+          for (const event of item.messaging) {
+            if (event.message) {
+              // Ensure timestamp is always a valid date
+              const timestamp = event.timestamp 
+                ? new Date(event.timestamp) 
+                : new Date();
+              
+              const interaction = new Interaction({
+                type: 'comment',
+                message: event.message.text || 'Media message',
+                user: event.sender?.id || 'unknown',
+                timestamp: timestamp
+              });
+              
+              await interaction.save();
+              console.log('💾 Saved interaction:', interaction._id);
+            }
+          }
+        }
+        
+        if (item.changes) {
+          // Handle changes (comments, reactions, etc.)
+          for (const change of item.changes) {
+            const { field, value } = change;
+            
+            if (field === 'comments') {
+              // Ensure timestamp is always a valid date
+              const timestamp = value.created_time 
+                ? new Date(value.created_time * 1000) 
+                : new Date();
+              
+              const interaction = new Interaction({
+                type: 'comment',
+                message: value.text || 'No text',
+                user: value.from?.username || value.from?.id || 'unknown',
+                postId: value.media?.id || 'unknown',
+                timestamp: timestamp
+              });
+              
+              await interaction.save();
+              console.log('💾 Saved comment:', interaction._id);
+            }
+            
+            if (field === 'reactions') {
+              // Ensure timestamp is always a valid date
+              const timestamp = value.created_time 
+                ? new Date(value.created_time * 1000) 
+                : new Date();
+              
+              const interaction = new Interaction({
+                type: 'reaction',
+                message: `Reaction: ${value.reaction_type}`,
+                user: value.user?.username || value.user?.id || 'unknown',
+                postId: value.media?.id || 'unknown',
+                reactionType: value.reaction_type,
+                timestamp: timestamp
+              });
+              
+              await interaction.save();
+              console.log('💾 Saved reaction:', interaction._id);
+            }
+          }
+        }
+      }
+    }
+    
+    // Send 200 OK to Instagram to acknowledge receipt
+    res.status(200).json({
+      success: true,
+      message: 'Webhook processed successfully'
+    });
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing webhook',
+      error: error.message
+    });
+  }
+});
+
+// Webhook verification endpoint (for Instagram webhook setup)
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  // Use VERIFY_TOKEN from environment (preferred) or fallback to INSTAGRAM_WEBHOOK_SECRET
+  const verifyToken = VERIFY_TOKEN || INSTAGRAM_WEBHOOK_SECRET;
+  
+  console.log('\n🔍 === WEBHOOK VERIFICATION REQUEST ===');
+  console.log('  Mode:', mode);
+  console.log('  Received token (hub.verify_token):', token || 'NOT PROVIDED');
+  console.log('  Expected token (VERIFY_TOKEN):', verifyToken || 'NOT SET IN .env');
+  console.log('  Challenge:', challenge || 'NOT PROVIDED');
+  console.log('  Tokens match?', token === verifyToken);
+  console.log('=========================================\n');
+  
+  if (!verifyToken) {
+    console.error('❌ ERROR: VERIFY_TOKEN or INSTAGRAM_WEBHOOK_SECRET not set in .env file!');
+    console.error('   Please add to .env: VERIFY_TOKEN=your_token');
+    return res.status(500).send('Server configuration error');
+  }
+  
+  if (!mode || !token || !challenge) {
+    console.warn('⚠️ Missing required parameters');
+    console.warn('   Mode:', mode || 'MISSING');
+    console.warn('   Token:', token || 'MISSING');
+    console.warn('   Challenge:', challenge || 'MISSING');
+    return res.status(400).send('Missing required parameters');
+  }
+  
+  if (mode === 'subscribe' && token === verifyToken) {
+    console.log('✅ Webhook verified successfully!');
+    res.status(200).send(challenge);
+  } else {
+    console.warn('⚠️ Webhook verification FAILED');
+    if (mode !== 'subscribe') {
+      console.warn('   Reason: Invalid mode. Expected "subscribe", got:', mode);
+    }
+    if (token !== verifyToken) {
+      console.warn('   Reason: Token mismatch');
+      console.warn('   Received:', token);
+      console.warn('   Expected:', verifyToken);
+    }
+    res.sendStatus(403);
+  }
+});
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found'
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: err.message
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`\n🚀 Server running on port ${PORT}`);
+  console.log(`📡 Health check: http://localhost:${PORT}/health`);
+  console.log(`🪝 Webhook endpoint: http://localhost:${PORT}/webhook`);
+  console.log(`\n📝 Environment variables (from .env lines 7-15):`);
+  console.log(`   PORT (line 9): ${PORT}`);
+  console.log(`   FRONTEND_URL (line 12): ${FRONTEND_URL}`);
+  console.log(`   VERIFY_TOKEN: ${VERIFY_TOKEN ? '✅ Set (' + VERIFY_TOKEN + ')' : '❌ Missing'}`);
+  console.log(`   INSTAGRAM_WEBHOOK_SECRET (legacy): ${INSTAGRAM_WEBHOOK_SECRET ? '✅ Set' : '❌ Missing'}`);
+  console.log(`\n📝 Other environment variables:`);
+  console.log(`   MONGODB_URI: ${MONGODB_URI ? '✅ Set' : '❌ Missing'}`);
+  console.log(`   INSTAGRAM_PAGE_ACCESS_TOKEN: ${INSTAGRAM_PAGE_ACCESS_TOKEN ? '✅ Set' : '❌ Missing'}`);
+  console.log(`   AUTO_REPLY_ENABLED: ${AUTO_REPLY_ENABLED}`);
+  console.log('');
+});
+
+export default app;
+
+

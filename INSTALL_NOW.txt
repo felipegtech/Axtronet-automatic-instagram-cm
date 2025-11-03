@@ -1,0 +1,118 @@
+================================================================================
+🚀 INSTALL NOW - FOLLOW THESE STEPS
+================================================================================
+
+YOUR MONGODB ATLAS CONNECTION STRING:
+mongodb+srv://fgomezd1_db_user:<db_password>@instagram-cm.zkeq4v4.mongodb.net/?appName=instagram-cm
+
+IMPORTANT: Replace <db_password> with your actual database password!
+
+================================================================================
+
+STEP 1: Create .env file in backend/
+-------------------------------------
+
+cd backend
+
+Create a new file named: .env
+
+Copy this into it:
+
+MONGODB_URI=mongodb+srv://fgomezd1_db_user:YOUR_PASSWORD@instagram-cm.zkeq4v4.mongodb.net/instagram-cm?retryWrites=true&w=majority&appName=instagram-cm
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+INSTAGRAM_WEBHOOK_SECRET=my_secret_key
+
+REPLACE: YOUR_PASSWORD with your actual MongoDB Atlas password!
+
+
+STEP 2: Install Dependencies
+-----------------------------
+
+# Backend
+cd backend
+npm install
+
+# Frontend
+cd ../frontend
+npm install
+
+
+STEP 3: Configure MongoDB Atlas Network Access
+----------------------------------------------
+
+1. Go to: https://cloud.mongodb.com/
+2. Click "Network Access" (left menu)
+3. Click "Add IP Address"
+4. Enter: 0.0.0.0/0
+5. Click "Confirm"
+
+(For production, use specific IPs, but this is fine for testing)
+
+
+STEP 4: Start Backend Server
+-----------------------------
+
+cd backend
+npm start
+
+Wait for: ✅ Connected to MongoDB successfully
+          🚀 Server running on port 5000
+
+
+STEP 5: Start Frontend Server
+------------------------------
+
+Open NEW terminal:
+cd frontend
+npm run dev
+
+Wait for: ➜  Local:   http://localhost:5173/
+
+
+STEP 6: Open Dashboard
+----------------------
+
+Open browser: http://localhost:5173
+
+You should see the dashboard!
+
+
+STEP 7: Test It!
+----------------
+
+In another terminal, run:
+
+curl -X POST http://localhost:5000/webhook -H "Content-Type: application/json" -d "{\"object\":\"instagram\",\"entry\":[{\"changes\":[{\"field\":\"comments\",\"value\":{\"text\":\"Test comment!\",\"from\":{\"username\":\"test_user\"},\"media\":{\"id\":\"123\"},\"created_time\":1699123456}}]}]}"
+
+Then refresh your browser - you should see the test comment!
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+❌ "Authentication failed"
+   ✓ Double-check your password in .env
+   ✓ Make sure no spaces in password
+
+❌ "Connection timeout" 
+   ✓ Add IP address to MongoDB Atlas Network Access
+   ✓ Use 0.0.0.0/0 for testing
+
+❌ "Cannot find module"
+   ✓ Run: npm install in backend and frontend directories
+
+❌ Frontend shows errors
+   ✓ Make sure backend is running on port 5000
+   ✓ Check browser console for errors
+
+================================================================================
+
+For detailed help:
+- MongoDB Atlas: MONGODB_ATLAS_SETUP.md
+- Quick Start: GETTING_STARTED.md
+- Full Docs: README.md
+
+================================================================================
+

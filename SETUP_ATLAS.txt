@@ -1,0 +1,90 @@
+================================================================================
+MONGODB ATLAS SETUP - QUICK GUIDE
+================================================================================
+
+IMPORTANT: Replace <db_password> with your actual MongoDB Atlas password!
+
+STEP 1: Create Backend .env File
+----------------------------------
+cd backend
+
+Create .env file with this content:
+
+MONGODB_URI=mongodb+srv://fgomezd1_db_user:YOUR_PASSWORD_HERE@instagram-cm.zkeq4v4.mongodb.net/instagram-cm?retryWrites=true&w=majority&appName=instagram-cm
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+INSTAGRAM_WEBHOOK_SECRET=your_secret_here
+
+REPLACE: YOUR_PASSWORD_HERE with your actual database password
+
+
+STEP 2: Configure Network Access in MongoDB Atlas
+--------------------------------------------------
+1. Go to MongoDB Atlas Dashboard: https://cloud.mongodb.com/
+2. Click "Network Access" (left menu)
+3. Click "Add IP Address"
+4. Choose "Allow Access from Anywhere" for testing:
+   IP Address: 0.0.0.0/0
+   (WARNING: Only for testing, not for production!)
+
+
+STEP 3: Install Dependencies
+-----------------------------
+cd backend
+npm install
+
+
+STEP 4: Start Server and Test
+------------------------------
+npm start
+
+You should see:
+✅ Connected to MongoDB successfully
+🚀 Server running on port 5000
+
+Test in another terminal:
+curl http://localhost:5000/health
+
+Expected: {"status":"ok","mongodb":"connected"}
+
+
+STEP 5: Start Frontend
+-----------------------
+cd ../frontend
+npm run dev
+
+Open browser: http://localhost:5173
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: "Authentication failed"
+Solution: Double-check your password in .env file
+
+Problem: "Connection timeout"
+Solution: Add IP address to Network Access in MongoDB Atlas
+
+Problem: Can't find .env file
+Solution: Make sure you're in the backend/ directory when creating it
+
+Problem: Wrong password format
+Solution: Make sure password has no spaces, URL-encode special characters
+
+================================================================================
+YOUR CONNECTION STRING
+================================================================================
+
+Template:
+mongodb+srv://fgomezd1_db_user:<db_password>@instagram-cm.zkeq4v4.mongodb.net/instagram-cm?retryWrites=true&w=majority&appName=instagram-cm
+
+Replace <db_password> with your actual password!
+
+Example (if password is "MyPass123"):
+mongodb+srv://fgomezd1_db_user:MyPass123@instagram-cm.zkeq4v4.mongodb.net/instagram-cm?retryWrites=true&w=majority&appName=instagram-cm
+
+================================================================================
+For detailed instructions, see: MONGODB_ATLAS_SETUP.md
+================================================================================
+
