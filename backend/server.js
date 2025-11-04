@@ -3,6 +3,15 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Interaction from './models/Interaction.js';
+import JobOffer from './models/JobOffer.js';
+import Candidate from './models/Candidate.js';
+
+// Import routes
+import jobOffersRoutes from './routes/jobOffers.js';
+import candidatesRoutes from './routes/candidates.js';
+import surveysRoutes from './routes/surveys.js';
+import autoReplyRoutes from './routes/autoReply.js';
+import settingsRoutes from './routes/settings.js';
 
 // Load environment variables
 const envResult = dotenv.config();
@@ -65,12 +74,27 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Get all interactions endpoint
+// Get all interactions endpoint with filters
 app.get('/api/interactions', async (req, res) => {
   try {
-    const interactions = await Interaction.find()
+    const { 
+      type, 
+      source, 
+      sentiment, 
+      postId,
+      limit = 100 
+    } = req.query;
+    
+    const query = {};
+    
+    if (type) query.type = type;
+    if (source) query.source = source;
+    if (sentiment) query.sentiment = sentiment;
+    if (postId) query.postId = postId;
+    
+    const interactions = await Interaction.find(query)
       .sort({ timestamp: -1 })
-      .limit(100); // Limit to last 100 interactions
+      .limit(parseInt(limit));
     
     res.json({
       success: true,
@@ -82,6 +106,54 @@ app.get('/api/interactions', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching interactions',
+      error: error.message
+    });
+  }
+});
+
+// Reply to interaction
+app.post('/api/interactions/:id/reply', async (req, res) => {
+  try {
+    const { message, moveToDM } = req.body;
+    const interaction = await Interaction.findById(req.params.id);
+    
+    if (!interaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Interaction not found'
+      });
+    }
+    
+    interaction.replied = true;
+    interaction.replyMessage = message;
+    interaction.movedToDM = moveToDM || false;
+    
+    await interaction.save();
+    
+    // Create or update candidate
+    const candidate = await Candidate.findOne({ 
+      instagramHandle: interaction.user.toLowerCase() 
+    });
+    
+    if (candidate) {
+      candidate.conversations.push({
+        message: message,
+        type: moveToDM ? 'dm' : 'reply',
+        timestamp: new Date(),
+        sentiment: interaction.sentiment
+      });
+      candidate.engagementScore = Math.min(100, candidate.engagementScore + 1);
+      await candidate.save();
+    }
+    
+    res.json({
+      success: true,
+      data: interaction
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error replying to interaction',
       error: error.message
     });
   }
@@ -101,13 +173,29 @@ app.get('/api/stats', async (req, res) => {
       timestamp: { $gte: yesterday }
     });
     
+    // Sentiment analysis
+    const positive = await Interaction.countDocuments({ sentiment: 'positive' });
+    const neutral = await Interaction.countDocuments({ sentiment: 'neutral' });
+    const negative = await Interaction.countDocuments({ sentiment: 'negative' });
+    
+    // DMs sent (simulated - would be actual count from Instagram API)
+    const dmsSent = await Candidate.countDocuments({ 
+      'conversations.type': 'dm' 
+    });
+    
     res.json({
       success: true,
       data: {
         total: totalInteractions,
         comments,
         reactions,
-        last24Hours: recentInteractions
+        last24Hours: recentInteractions,
+        sentiment: {
+          positive,
+          neutral,
+          negative
+        },
+        dmsSent
       }
     });
   } catch (error) {
@@ -163,15 +251,27 @@ app.post('/webhook', async (req, res) => {
                 ? new Date(value.created_time * 1000) 
                 : new Date();
               
+              const username = value.from?.username || value.from?.id || 'unknown';
+              const message = value.text || 'No text';
+              
+              // Simple sentiment analysis
+              const sentiment = analyzeSentiment(message);
+              
               const interaction = new Interaction({
                 type: 'comment',
-                message: value.text || 'No text',
-                user: value.from?.username || value.from?.id || 'unknown',
+                message: message,
+                user: username,
                 postId: value.media?.id || 'unknown',
-                timestamp: timestamp
+                timestamp: timestamp,
+                sentiment: sentiment,
+                source: 'post'
               });
               
               await interaction.save();
+              
+              // Create or update candidate
+              await createOrUpdateCandidate(username, message, sentiment, 'comment');
+              
               console.log('💾 Saved comment:', interaction._id);
             }
             
@@ -181,16 +281,24 @@ app.post('/webhook', async (req, res) => {
                 ? new Date(value.created_time * 1000) 
                 : new Date();
               
+              const username = value.user?.username || value.user?.id || 'unknown';
+              
               const interaction = new Interaction({
                 type: 'reaction',
                 message: `Reaction: ${value.reaction_type}`,
-                user: value.user?.username || value.user?.id || 'unknown',
+                user: username,
                 postId: value.media?.id || 'unknown',
                 reactionType: value.reaction_type,
-                timestamp: timestamp
+                timestamp: timestamp,
+                sentiment: 'neutral',
+                source: 'post'
               });
               
               await interaction.save();
+              
+              // Create or update candidate
+              await createOrUpdateCandidate(username, `Reaction: ${value.reaction_type}`, 'neutral', 'reaction', value.reaction_type);
+              
               console.log('💾 Saved reaction:', interaction._id);
             }
           }
@@ -260,6 +368,75 @@ app.get('/webhook', (req, res) => {
     res.sendStatus(403);
   }
 });
+
+// Helper function for sentiment analysis
+function analyzeSentiment(text) {
+  const positiveWords = ['gracias', 'excelente', 'bueno', 'genial', 'perfecto', 'me encanta', 'interesado', 'vacante', 'empleo'];
+  const negativeWords = ['malo', 'horrible', 'no', 'rechazo', 'problema', 'error'];
+  
+  const lowerText = text.toLowerCase();
+  let score = 0;
+  
+  positiveWords.forEach(word => {
+    if (lowerText.includes(word)) score++;
+  });
+  
+  negativeWords.forEach(word => {
+    if (lowerText.includes(word)) score--;
+  });
+  
+  if (score > 0) return 'positive';
+  if (score < 0) return 'negative';
+  return 'neutral';
+}
+
+// Helper function to create or update candidate
+async function createOrUpdateCandidate(username, message, sentiment, type, reactionType = null) {
+  try {
+    let candidate = await Candidate.findOne({ instagramHandle: username.toLowerCase() });
+    
+    if (!candidate) {
+      candidate = new Candidate({
+        instagramHandle: username.toLowerCase(),
+        name: username,
+        engagementScore: 1,
+        conversations: [{
+          message: message,
+          type: type,
+          timestamp: new Date(),
+          sentiment: sentiment
+        }]
+      });
+    } else {
+      candidate.conversations.push({
+        message: message,
+        type: type,
+        timestamp: new Date(),
+        sentiment: sentiment
+      });
+      candidate.engagementScore = Math.min(100, candidate.engagementScore + 1);
+    }
+    
+    if (reactionType) {
+      candidate.reactions.push({
+        reactionType: reactionType,
+        timestamp: new Date()
+      });
+    }
+    
+    await candidate.save();
+  } catch (error) {
+    console.error('Error creating/updating candidate:', error);
+  }
+}
+
+// API Routes
+app.use('/api/job-offers', jobOffersRoutes);
+app.use('/api/candidates', candidatesRoutes);
+app.use('/api/surveys', surveysRoutes);
+app.use('/api/auto-reply', autoReplyRoutes);
+app.use('/api/settings', settingsRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({

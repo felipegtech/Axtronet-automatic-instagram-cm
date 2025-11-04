@@ -27,6 +27,28 @@ const interactionSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  sentiment: {
+    type: String,
+    enum: ['positive', 'neutral', 'negative'],
+    default: 'neutral'
+  },
+  source: {
+    type: String,
+    enum: ['post', 'story'],
+    default: 'post'
+  },
+  replied: {
+    type: Boolean,
+    default: false
+  },
+  replyMessage: {
+    type: String,
+    default: null
+  },
+  movedToDM: {
+    type: Boolean,
+    default: false
+  },
   metadata: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
