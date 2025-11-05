@@ -61,6 +61,8 @@ const interactionSchema = new mongoose.Schema({
 interactionSchema.index({ timestamp: -1 });
 interactionSchema.index({ type: 1, timestamp: -1 });
 interactionSchema.index({ postId: 1 });
+interactionSchema.index({ 'metadata.instagramCommentId': 1 }); // Para evitar duplicados y loops
+interactionSchema.index({ replied: 1 }); // Para buscar comentarios no respondidos
 
 const Interaction = mongoose.model('Interaction', interactionSchema);
 

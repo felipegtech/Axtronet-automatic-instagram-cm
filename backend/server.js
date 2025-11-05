@@ -13,6 +13,13 @@ import surveysRoutes from './routes/surveys.js';
 import autoReplyRoutes from './routes/autoReply.js';
 import settingsRoutes from './routes/settings.js';
 
+// Import services
+import autoReplyService from './services/autoReplyService.js';
+import nlpService from './services/nlpService.js';
+import publishingService from './services/publishingService.js';
+import instagramService from './services/instagramService.js';
+import webhookHandler from './services/webhookHandler.js';
+
 // Load environment variables
 const envResult = dotenv.config();
 
@@ -219,25 +226,111 @@ app.post('/webhook', async (req, res) => {
     if (object === 'instagram' && entry) {
       for (const item of entry) {
         if (item.messaging) {
-          // Handle direct messaging
+          // Handle direct messaging (DMs entrantes)
+          console.log('\n📩 ========== PROCESANDO MENSAJES DIRECTOS ==========');
           for (const event of item.messaging) {
             if (event.message) {
-              // Ensure timestamp is always a valid date
-              const timestamp = event.timestamp 
-                ? new Date(event.timestamp) 
-                : new Date();
-              
-              const interaction = new Interaction({
-                type: 'comment',
-                message: event.message.text || 'Media message',
-                user: event.sender?.id || 'unknown',
-                timestamp: timestamp
-              });
-              
-              await interaction.save();
-              console.log('💾 Saved interaction:', interaction._id);
+              try {
+                // Ensure timestamp is always a valid date
+                const timestamp = event.timestamp 
+                  ? new Date(event.timestamp * 1000)  // Instagram usa timestamp en segundos
+                  : new Date();
+                
+                const senderId = event.sender?.id || 'unknown';
+                const messageText = event.message.text || 'Media message';
+                const messageId = event.message.mid || `msg_${Date.now()}`;
+                
+                console.log(`   📩 DM recibido:`);
+                console.log(`      De: ${senderId}`);
+                console.log(`      Mensaje: "${messageText.substring(0, 50)}..."`);
+                console.log(`      Message ID: ${messageId}`);
+                
+                // Validación: verificar que tenemos datos mínimos
+                if (!senderId || senderId === 'unknown') {
+                  console.warn('   ⚠️ Mensaje ignorado: remitente desconocido');
+                  continue;
+                }
+                
+                // Buscar candidato por sender ID o crear uno nuevo
+                const Candidate = (await import('./models/Candidate.js')).default;
+                let candidate = await Candidate.findOne({ 
+                  $or: [
+                    { instagramHandle: senderId.toLowerCase() },
+                    { 'metadata.instagramUserId': senderId }
+                  ]
+                });
+                
+                if (!candidate) {
+                  // Crear nuevo candidato desde el DM
+                  candidate = new Candidate({
+                    instagramHandle: senderId.toLowerCase(),
+                    name: senderId,
+                    engagementScore: 5, // DM = mayor engagement
+                    conversations: [{
+                      message: messageText,
+                      type: 'dm',
+                      timestamp: timestamp,
+                      sentiment: 'neutral'
+                    }],
+                    status: 'active',
+                    metadata: {
+                      instagramUserId: senderId,
+                      lastDMReceived: timestamp
+                    }
+                  });
+                  await candidate.save();
+                  console.log(`   ✅ Nuevo candidato creado desde DM: ${candidate._id}`);
+                } else {
+                  // Agregar DM a conversación existente
+                  candidate.conversations.push({
+                    message: messageText,
+                    type: 'dm',
+                    timestamp: timestamp,
+                    sentiment: 'neutral'
+                  });
+                  candidate.engagementScore = Math.min(100, candidate.engagementScore + 5);
+                  candidate.metadata = {
+                    ...candidate.metadata,
+                    instagramUserId: senderId,
+                    lastDMReceived: timestamp
+                  };
+                  await candidate.save();
+                  console.log(`   ✅ DM agregado a conversación de candidato: ${candidate._id}`);
+                }
+                
+                // Crear interacción para el dashboard
+                const interaction = new Interaction({
+                  type: 'comment', // Usamos 'comment' para DMs también en el dashboard
+                  message: messageText,
+                  user: senderId,
+                  timestamp: timestamp,
+                  source: 'dm',
+                  metadata: {
+                    messageId: messageId,
+                    senderId: senderId,
+                    isDM: true
+                  }
+                });
+                
+                await interaction.save();
+                
+                // Validación segura antes de acceder a _id
+                if (interaction && interaction._id) {
+                  console.log(`   💾 Interacción guardada: ${interaction._id}`);
+                } else {
+                  console.warn('   ⚠️ Interacción guardada pero sin _id válido');
+                }
+                
+                console.log(`   ✅ DM procesado exitosamente`);
+              } catch (error) {
+                console.error(`   ❌ Error procesando mensaje directo:`, error);
+                console.error(`   Mensaje:`, error.message);
+                console.error(`   Stack:`, error.stack);
+                // Continuar procesando otros eventos
+              }
             }
           }
+          console.log(`📩 ========== FIN PROCESAMIENTO DMs ==========\n`);
         }
         
         if (item.changes) {
@@ -246,60 +339,82 @@ app.post('/webhook', async (req, res) => {
             const { field, value } = change;
             
             if (field === 'comments') {
-              // Ensure timestamp is always a valid date
-              const timestamp = value.created_time 
-                ? new Date(value.created_time * 1000) 
-                : new Date();
-              
-              const username = value.from?.username || value.from?.id || 'unknown';
-              const message = value.text || 'No text';
-              
-              // Simple sentiment analysis
-              const sentiment = analyzeSentiment(message);
-              
-              const interaction = new Interaction({
-                type: 'comment',
-                message: message,
-                user: username,
-                postId: value.media?.id || 'unknown',
-                timestamp: timestamp,
-                sentiment: sentiment,
-                source: 'post'
-              });
-              
-              await interaction.save();
-              
-              // Create or update candidate
-              await createOrUpdateCandidate(username, message, sentiment, 'comment');
-              
-              console.log('💾 Saved comment:', interaction._id);
+              // Usar el webhook handler especializado para procesar comentarios
+              try {
+                const interaction = await webhookHandler.processComment(
+                  value,
+                  value.media?.id || 'unknown'
+                );
+                
+                // Validación segura: verificar que interaction existe y no es null
+                // IMPORTANTE: processComment puede retornar null cuando ignora comentarios
+                if (!interaction) {
+                  // Comentario ignorado por filtros (loop, duplicado, respuesta del bot)
+                  console.log(`ℹ️ Comentario ignorado (evitando loop, duplicado o respuesta del bot)`);
+                  // Continuar con el siguiente evento sin error - NO acceder a _id
+                  continue;
+                }
+                
+                // Ahora sabemos que interaction existe, pero aún verificamos _id de forma segura
+                if (interaction && interaction._id) {
+                  console.log(`💾 Comentario procesado y guardado: ${interaction._id}`);
+                } else if (interaction) {
+                  // Interaction existe pero no tiene _id (caso raro)
+                  console.warn(`⚠️ Comentario procesado pero sin _id válido`);
+                } else {
+                  // Doble verificación (aunque ya debería estar cubierto arriba)
+                  console.warn(`⚠️ Interaction es null/undefined después de verificación`);
+                }
+              } catch (error) {
+                console.error(`❌ Error procesando comentario:`, error);
+                console.error(`   Mensaje:`, error.message);
+                console.error(`   Stack:`, error.stack);
+                // Continuar procesando otros eventos sin romper el webhook
+              }
             }
             
             if (field === 'reactions') {
-              // Ensure timestamp is always a valid date
-              const timestamp = value.created_time 
-                ? new Date(value.created_time * 1000) 
-                : new Date();
-              
-              const username = value.user?.username || value.user?.id || 'unknown';
-              
-              const interaction = new Interaction({
-                type: 'reaction',
-                message: `Reaction: ${value.reaction_type}`,
-                user: username,
-                postId: value.media?.id || 'unknown',
-                reactionType: value.reaction_type,
-                timestamp: timestamp,
-                sentiment: 'neutral',
-                source: 'post'
-              });
-              
-              await interaction.save();
-              
-              // Create or update candidate
-              await createOrUpdateCandidate(username, `Reaction: ${value.reaction_type}`, 'neutral', 'reaction', value.reaction_type);
-              
-              console.log('💾 Saved reaction:', interaction._id);
+              try {
+                // Ensure timestamp is always a valid date
+                const timestamp = value.created_time 
+                  ? new Date(value.created_time * 1000) 
+                  : new Date();
+                
+                const username = value.user?.username || value.user?.id || 'unknown';
+                
+                // Validación: verificar que tenemos datos mínimos
+                if (!username || username === 'unknown') {
+                  console.warn('⚠️ Reacción ignorada: usuario desconocido');
+                  continue;
+                }
+                
+                const interaction = new Interaction({
+                  type: 'reaction',
+                  message: `Reaction: ${value.reaction_type}`,
+                  user: username,
+                  postId: value.media?.id || 'unknown',
+                  reactionType: value.reaction_type,
+                  timestamp: timestamp,
+                  sentiment: 'neutral',
+                  source: 'post'
+                });
+                
+                await interaction.save();
+                
+                // Validación segura antes de acceder a _id
+                if (interaction && interaction._id) {
+                  console.log('💾 Saved reaction:', interaction._id);
+                } else {
+                  console.warn('⚠️ Reacción guardada pero sin _id válido');
+                }
+                
+                // Create or update candidate
+                await createOrUpdateCandidate(username, `Reaction: ${value.reaction_type}`, 'neutral', 'reaction', value.reaction_type);
+              } catch (error) {
+                console.error(`❌ Error procesando reacción:`, error);
+                console.error(`   Stack:`, error.stack);
+                // Continuar procesando otros eventos
+              }
             }
           }
         }
@@ -391,8 +506,14 @@ function analyzeSentiment(text) {
 }
 
 // Helper function to create or update candidate
-async function createOrUpdateCandidate(username, message, sentiment, type, reactionType = null) {
+async function createOrUpdateCandidate(username, message, sentiment, type, reactionType = null, analysis = null) {
   try {
+    // Validación: verificar que username es válido
+    if (!username || username === 'unknown') {
+      console.warn('⚠️ No se puede crear/actualizar candidato: username inválido');
+      return null;
+    }
+    
     let candidate = await Candidate.findOne({ instagramHandle: username.toLowerCase() });
     
     if (!candidate) {
@@ -407,6 +528,17 @@ async function createOrUpdateCandidate(username, message, sentiment, type, react
           sentiment: sentiment
         }]
       });
+
+      // Agregar información demográfica si está disponible
+      if (analysis && analysis.demographic) {
+        candidate.interestAreas = analysis.jobKeywords || [];
+        candidate.metadata = {
+          ...candidate.metadata,
+          location: analysis.demographic.location,
+          age: analysis.demographic.age,
+          experience: analysis.demographic.experience
+        };
+      }
     } else {
       candidate.conversations.push({
         message: message,
@@ -415,6 +547,19 @@ async function createOrUpdateCandidate(username, message, sentiment, type, react
         sentiment: sentiment
       });
       candidate.engagementScore = Math.min(100, candidate.engagementScore + 1);
+
+      // Actualizar información demográfica
+      if (analysis && analysis.demographic) {
+        if (analysis.jobKeywords && analysis.jobKeywords.length > 0) {
+          candidate.interestAreas = [...new Set([...candidate.interestAreas, ...analysis.jobKeywords])];
+        }
+        if (analysis.demographic.location && !candidate.metadata.location) {
+          candidate.metadata = {
+            ...candidate.metadata,
+            location: analysis.demographic.location
+          };
+        }
+      }
     }
     
     if (reactionType) {
@@ -425,8 +570,19 @@ async function createOrUpdateCandidate(username, message, sentiment, type, react
     }
     
     await candidate.save();
+    
+    // Validación segura: verificar que candidate se guardó correctamente
+    if (candidate && candidate._id) {
+      return candidate;
+    } else {
+      console.warn('⚠️ Candidato guardado pero sin _id válido');
+      return candidate;
+    }
   } catch (error) {
-    console.error('Error creating/updating candidate:', error);
+    console.error('❌ Error creating/updating candidate:', error);
+    console.error('   Stack:', error.stack);
+    // No lanzar el error para que el proceso continúe
+    return null;
   }
 }
 
@@ -436,6 +592,202 @@ app.use('/api/candidates', candidatesRoutes);
 app.use('/api/surveys', surveysRoutes);
 app.use('/api/auto-reply', autoReplyRoutes);
 app.use('/api/settings', settingsRoutes);
+
+// New endpoints for full functionality
+
+// Publicar oferta laboral (post o story)
+app.post('/api/job-offers/:id/publish-instagram', async (req, res) => {
+  try {
+    const { type = 'post' } = req.body; // 'post' or 'story'
+    const result = await publishingService.publishJobOffer(req.params.id, type);
+    
+    // Identificar candidatos interesados automáticamente después de publicar
+    setTimeout(async () => {
+      try {
+        await publishingService.identifyInterestedCandidates(result.jobOffer.instagramPostId);
+      } catch (error) {
+        console.error('Error identifying candidates:', error);
+      }
+    }, 5000); // Esperar 5 segundos para que haya interacciones
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error publishing job offer',
+      error: error.message
+    });
+  }
+});
+
+// Publicar encuesta (post o story)
+app.post('/api/surveys/:id/publish-instagram', async (req, res) => {
+  try {
+    const { type = 'post' } = req.body;
+    const result = await publishingService.publishSurvey(req.params.id, type);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error publishing survey',
+      error: error.message
+    });
+  }
+});
+
+// Continuar conversación por DM
+app.post('/api/candidates/:id/continue-dm', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const candidate = await Candidate.findById(req.params.id);
+    
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found'
+      });
+    }
+
+    const result = await instagramService.sendDirectMessage(
+      candidate.instagramHandle,
+      message
+    );
+
+    // Agregar a historial de conversación
+    candidate.conversations.push({
+      message: message,
+      type: 'dm',
+      timestamp: new Date(),
+      sentiment: 'neutral'
+    });
+
+    candidate.status = 'contacted';
+    await candidate.save();
+
+    res.json({
+      success: true,
+      ...result,
+      candidate
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error sending DM',
+      error: error.message
+    });
+  }
+});
+
+// Identificar candidatos interesados en un post específico
+app.post('/api/job-offers/:id/identify-candidates', async (req, res) => {
+  try {
+    const jobOffer = await JobOffer.findById(req.params.id);
+    
+    if (!jobOffer || !jobOffer.instagramPostId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job offer not found or not published'
+      });
+    }
+
+    const result = await publishingService.identifyInterestedCandidates(
+      jobOffer.instagramPostId
+    );
+
+    // Actualizar analytics de la oferta
+    jobOffer.analytics.interestedCandidates = result.count;
+    await jobOffer.save();
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error identifying candidates',
+      error: error.message
+    });
+  }
+});
+
+// Recolectar información demográfica
+app.get('/api/analytics/demographics', async (req, res) => {
+  try {
+    const demographics = await publishingService.collectDemographicData();
+    res.json({
+      success: true,
+      data: demographics
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error collecting demographic data',
+      error: error.message
+    });
+  }
+});
+
+// Procesar auto-reply manualmente para una interacción
+app.post('/api/interactions/:id/process-auto-reply', async (req, res) => {
+  try {
+    const interaction = await Interaction.findById(req.params.id);
+    
+    if (!interaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Interaction not found'
+      });
+    }
+
+    const result = await autoReplyService.processInteraction(interaction);
+    res.json({
+      success: true,
+      result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error processing auto-reply',
+      error: error.message
+    });
+  }
+});
+
+// Analizar interacción con NLP
+app.post('/api/interactions/:id/analyze', async (req, res) => {
+  try {
+    const interaction = await Interaction.findById(req.params.id);
+    
+    if (!interaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Interaction not found'
+      });
+    }
+
+    const analysis = nlpService.analyzeInteraction(interaction);
+    
+    // Actualizar interacción con análisis
+    interaction.metadata = {
+      ...interaction.metadata,
+      jobInterest: analysis.jobInterest,
+      topics: analysis.topics,
+      jobKeywords: analysis.jobKeywords,
+      demographic: analysis.demographic,
+      priority: analysis.priority
+    };
+    await interaction.save();
+
+    res.json({
+      success: true,
+      analysis
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error analyzing interaction',
+      error: error.message
+    });
+  }
+});
 
 // 404 handler
 app.use((req, res) => {
@@ -455,8 +807,67 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Initialize default template on startup
+async function initializeDefaultTemplate() {
+  try {
+    const AutoReplyTemplate = (await import('./models/AutoReplyTemplate.js')).default;
+    const Settings = (await import('./models/Settings.js')).default;
+    
+    // Crear template por defecto si no existe
+    let defaultTemplate = await AutoReplyTemplate.findOne({ isDefault: true });
+    if (!defaultTemplate) {
+      defaultTemplate = new AutoReplyTemplate({
+        name: 'Respuesta General por Defecto',
+        template: '¡Gracias por comentar! 😊',
+        category: 'general',
+        isActive: true,
+        isDefault: true,
+        smartRules: {
+          keywords: [],
+          sentiment: 'any',
+          triggerOn: 'always'
+        }
+      });
+      await defaultTemplate.save();
+      console.log('✅ Template de auto-reply por defecto creado');
+    } else {
+      console.log('✅ Template de auto-reply por defecto ya existe');
+    }
+    
+    // HABILITAR auto-reply por defecto SIEMPRE si no está configurado o está deshabilitado
+    const settings = await Settings.getSettings();
+    const shouldEnable = settings.autoReply?.enabled === undefined || 
+                         settings.autoReply?.enabled === null || 
+                         settings.autoReply?.enabled === false;
+    
+    if (shouldEnable) {
+      // Validación segura: verificar que defaultTemplate existe antes de acceder a _id
+      if (defaultTemplate && defaultTemplate._id) {
+        settings.autoReply = {
+          enabled: true,  // FORZAR habilitado
+          defaultTemplate: defaultTemplate._id
+        };
+      } else {
+        console.warn('⚠️ Template por defecto no tiene _id, habilitando auto-reply sin template');
+        settings.autoReply = {
+          enabled: true,
+          defaultTemplate: null
+        };
+      }
+      await settings.save();
+      console.log('✅ Auto-reply HABILITADO automáticamente por defecto');
+      console.log(`   Estado guardado: enabled = ${settings.autoReply.enabled}`);
+    } else {
+      console.log(`ℹ️ Auto-reply ya está configurado: enabled = ${settings.autoReply?.enabled}`);
+    }
+  } catch (error) {
+    console.error('⚠️ Error inicializando template por defecto:', error.message);
+    console.error('   Stack:', error.stack);
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`🪝 Webhook endpoint: http://localhost:${PORT}/webhook`);
@@ -470,6 +881,9 @@ app.listen(PORT, () => {
   console.log(`   INSTAGRAM_PAGE_ACCESS_TOKEN: ${INSTAGRAM_PAGE_ACCESS_TOKEN ? '✅ Set' : '❌ Missing'}`);
   console.log(`   AUTO_REPLY_ENABLED: ${AUTO_REPLY_ENABLED}`);
   console.log('');
+  
+  // Initialize default template
+  await initializeDefaultTemplate();
 });
 
 export default app;

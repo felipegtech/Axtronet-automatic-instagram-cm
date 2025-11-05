@@ -91,12 +91,16 @@ function Surveys() {
     }
   }
 
-  const handlePublish = async (id) => {
+  const handlePublish = async (id, type = 'post') => {
     try {
-      await axios.post(`${API_BASE_URL}/api/surveys/${id}/publish`, {
-        instagramPostId: `post_${id}`
+      const response = await axios.post(`${API_BASE_URL}/api/surveys/${id}/publish-instagram`, {
+        type: type // 'post' or 'story'
       })
-      fetchSurveys()
+      
+      if (response.data.success) {
+        alert(`✅ Encuesta publicada como ${type === 'post' ? 'Post' : 'Story'} en Instagram!`)
+        fetchSurveys()
+      }
     } catch (error) {
       console.error('Error publishing survey:', error)
       alert('Error al publicar la encuesta')
@@ -261,13 +265,25 @@ function Surveys() {
                     <p className="text-gray-600 mt-1">{survey.question}</p>
                   </div>
                   <div className="flex space-x-2">
-                    {!survey.published && (
-                      <button
-                        onClick={() => handlePublish(survey._id)}
-                        className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-                      >
-                        Publish
-                      </button>
+                    {!survey.published ? (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handlePublish(survey._id, 'post')}
+                          className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                          title="Publicar como Post"
+                        >
+                          📱 Post
+                        </button>
+                        <button
+                          onClick={() => handlePublish(survey._id, 'story')}
+                          className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
+                          title="Publicar como Story"
+                        >
+                          📸 Story
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-green-600 font-semibold">Publicada</span>
                     )}
                     <button
                       onClick={() => handleExport(survey._id)}

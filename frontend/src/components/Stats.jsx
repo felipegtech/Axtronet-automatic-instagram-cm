@@ -46,7 +46,7 @@ function Stats({ stats }) {
         {statCards.map((stat, index) => (
           <div 
             key={index}
-            className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl hover:scale-105 transition-all duration-300"
+            className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl hover:border-emerald-300 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-4xl">{stat.icon}</span>

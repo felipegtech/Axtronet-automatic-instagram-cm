@@ -59,6 +59,19 @@ function Candidates() {
     }
   }
 
+  const handleContinueDM = async (candidateId, message) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/candidates/${candidateId}/continue-dm`, {
+        message: message
+      })
+      fetchCandidates()
+      alert('Mensaje DM enviado exitosamente!')
+    } catch (error) {
+      console.error('Error sending DM:', error)
+      alert('Error al enviar el DM')
+    }
+  }
+
   const handleStatusChange = async (candidateId, newStatus) => {
     try {
       await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}`, {
@@ -317,12 +330,30 @@ function Candidates() {
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <button
-              onClick={() => handleInvite(selectedCandidate._id)}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Send DM Invitation
-            </button>
+            <div className="space-y-2">
+              <textarea
+                value={inviteMessage}
+                onChange={(e) => setInviteMessage(e.target.value)}
+                placeholder="Escribe tu mensaje para continuar la conversación..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleInvite(selectedCandidate._id)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  📩 Enviar Invitación
+                </button>
+                <button
+                  onClick={() => handleContinueDM(selectedCandidate._id, inviteMessage)}
+                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                  disabled={!inviteMessage.trim()}
+                >
+                  💬 Continuar DM
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

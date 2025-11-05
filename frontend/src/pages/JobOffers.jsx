@@ -74,12 +74,25 @@ function JobOffers() {
     }
   }
 
-  const handlePublish = async (id) => {
+  const handlePublish = async (id, type = 'post') => {
     try {
-      await axios.post(`${API_BASE_URL}/api/job-offers/${id}/publish`, {
-        instagramPostId: `post_${id}`
+      const response = await axios.post(`${API_BASE_URL}/api/job-offers/${id}/publish-instagram`, {
+        type: type // 'post' or 'story'
       })
-      fetchJobOffers()
+      
+      if (response.data.success) {
+        alert(`✅ Oferta publicada como ${type === 'post' ? 'Post' : 'Story'} en Instagram!`)
+        fetchJobOffers()
+        
+        // Identificar candidatos después de unos segundos
+        setTimeout(async () => {
+          try {
+            await axios.post(`${API_BASE_URL}/api/job-offers/${id}/identify-candidates`)
+          } catch (error) {
+            console.error('Error identifying candidates:', error)
+          }
+        }, 10000)
+      }
     } catch (error) {
       console.error('Error publishing job offer:', error)
       alert('Error al publicar la oferta')
@@ -246,12 +259,39 @@ function JobOffers() {
                   >
                     📈 Analytics
                   </button>
-                  {!offer.published && (
+                  {!offer.published ? (
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => handlePublish(offer._id, 'post')}
+                        className="flex-1 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                        title="Publicar como Post"
+                      >
+                        📱 Post
+                      </button>
+                      <button
+                        onClick={() => handlePublish(offer._id, 'story')}
+                        className="flex-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
+                        title="Publicar como Story"
+                      >
+                        📸 Story
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => handlePublish(offer._id)}
-                      className="flex-1 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                      onClick={async () => {
+                        try {
+                          await axios.post(`${API_BASE_URL}/api/job-offers/${offer._id}/identify-candidates`)
+                          alert('✅ Candidatos identificados exitosamente!')
+                          fetchJobOffers()
+                        } catch (error) {
+                          console.error('Error identifying candidates:', error)
+                          alert('Error al identificar candidatos')
+                        }
+                      }}
+                      className="flex-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                      title="Identificar candidatos interesados"
                     >
-                      Publish
+                      🔍 Buscar Candidatos
                     </button>
                   )}
                   <button

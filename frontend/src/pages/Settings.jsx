@@ -110,6 +110,7 @@ function Settings() {
   const tabs = [
     { id: 'instagram', label: '🔑 Instagram API', icon: '🔑' },
     { id: 'webhook', label: '🌐 Webhook', icon: '🌐' },
+    { id: 'auto-reply', label: '🤖 Auto-Reply', icon: '🤖' },
     { id: 'notifications', label: '🔔 Notifications', icon: '🔔' },
     { id: 'team', label: '👨‍👩‍👧‍👦 Team Access', icon: '👨‍👩‍👧‍👦' }
   ]
@@ -161,15 +162,36 @@ function Settings() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Page Access Token
+                    Page Access Token <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
                     defaultValue={settings.instagram?.pageAccessToken || ''}
                     onBlur={(e) => updateInstagramSettings({ pageAccessToken: e.target.value })}
-                    placeholder="Enter Page Access Token"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ingresa tu Page Access Token de Instagram"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      !settings.instagram?.pageAccessToken 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
                   />
+                  {!settings.instagram?.pageAccessToken && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        <strong>⚠️ Requerido para Auto-Reply:</strong> Este token es necesario para que el sistema pueda responder automáticamente a los comentarios de Instagram.
+                      </p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Obtén tu token en: <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="underline">Facebook Graph API Explorer</a>
+                      </p>
+                    </div>
+                  )}
+                  {settings.instagram?.pageAccessToken && (
+                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800">
+                        ✅ Token configurado correctamente
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center">
                   <input
@@ -232,6 +254,64 @@ function Settings() {
                     placeholder="Enter verify token"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Auto-Reply Settings */}
+        {activeTab === 'auto-reply' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Auto-Reply Configuration</h2>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="autoReplyEnabled"
+                    checked={settings.autoReply?.enabled === true}
+                    onChange={async (e) => {
+                      try {
+                        const newValue = e.target.checked;
+                        console.log(`Cambiando auto-reply a: ${newValue}`);
+                        await axios.put(`${API_BASE_URL}/api/settings/auto-reply`, { 
+                          enabled: newValue 
+                        });
+                        // Actualizar estado local inmediatamente
+                        setSettings(prev => ({
+                          ...prev,
+                          autoReply: {
+                            ...prev.autoReply,
+                            enabled: newValue
+                          }
+                        }));
+                        alert(`✅ Auto-reply ${newValue ? 'habilitado' : 'deshabilitado'} exitosamente!`);
+                      } catch (error) {
+                        console.error('Error updating auto-reply:', error);
+                        alert(`❌ Error al actualizar auto-reply: ${error.message}`);
+                      }
+                    }}
+                    className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  />
+                  <label htmlFor="autoReplyEnabled" className="text-sm text-gray-700 font-medium cursor-pointer">
+                    Habilitar Auto-Reply Automático
+                  </label>
+                  {settings.autoReply?.enabled && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      ✅ Activo
+                    </span>
+                  )}
+                  {!settings.autoReply?.enabled && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      ⏸️ Inactivo
+                    </span>
+                  )}
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>💡 Información:</strong> Cuando está habilitado, el sistema responderá automáticamente a todos los comentarios nuevos en Instagram con el mensaje configurado.
+                  </p>
                 </div>
               </div>
             </div>

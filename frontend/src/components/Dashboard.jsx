@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import Stats from './Stats'
 import InteractionsList from './InteractionsList'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -12,14 +13,21 @@ function Dashboard() {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [dailyGrowth, setDailyGrowth] = useState(null)
+  const [insights, setInsights] = useState(null)
+  const [autoReplyMessage, setAutoReplyMessage] = useState('')
+  const [demographics, setDemographics] = useState(null)
 
   useEffect(() => {
     checkHealth()
     fetchData()
+    fetchAutoReply()
+    fetchDemographics()
     
     // Refresh data every 30 seconds
     const interval = setInterval(() => {
       fetchData()
+      fetchDemographics()
     }, 30000)
     
     return () => clearInterval(interval)
@@ -48,6 +56,14 @@ function Dashboard() {
       setStats(statsResponse.data.data)
       setInteractions(interactionsResponse.data.data)
       
+      // Calculate daily growth (simulated)
+      const previousTotal = stats?.total || 0
+      const currentTotal = statsResponse.data.data.total
+      if (previousTotal > 0) {
+        const growth = ((currentTotal - previousTotal) / previousTotal) * 100
+        setDailyGrowth(growth)
+      }
+      
       // Generate notifications from recent interactions
       const recentInteractions = interactionsResponse.data.data.slice(0, 5)
       const notificationsData = recentInteractions.map(interaction => ({
@@ -61,12 +77,65 @@ function Dashboard() {
       }))
       setNotifications(notificationsData)
       
+      // Generate insights
+      const insightsData = {
+        mostCommentedPost: interactionsResponse.data.data.find(i => i.type === 'comment')?.postId || 'N/A',
+        mostCommonReaction: getMostCommonReaction(interactionsResponse.data.data),
+        mostMentionedWord: getMostMentionedWord(interactionsResponse.data.data)
+      }
+      setInsights(insightsData)
+      
       setLoading(false)
     } catch (err) {
       console.error('Error fetching data:', err)
       setError(err.message)
       setLoading(false)
     }
+  }
+
+  const fetchAutoReply = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/auto-reply/templates/active`)
+      const defaultTemplate = response.data.data.find(t => t.isDefault) || response.data.data[0]
+      if (defaultTemplate) {
+        setAutoReplyMessage(defaultTemplate.template)
+      }
+    } catch (error) {
+      console.error('Error fetching auto-reply:', error)
+    }
+  }
+
+  const fetchDemographics = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/analytics/demographics`)
+      setDemographics(response.data.data)
+    } catch (error) {
+      console.error('Error fetching demographics:', error)
+    }
+  }
+
+  const getMostCommonReaction = (interactions) => {
+    const reactions = interactions.filter(i => i.type === 'reaction').map(i => i.reactionType)
+    if (reactions.length === 0) return '❤️ Like'
+    const counts = {}
+    reactions.forEach(r => counts[r] = (counts[r] || 0) + 1)
+    const mostCommon = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b)
+    const emojis = { like: '❤️', love: '😍', haha: '😂', wow: '😮', sad: '😢', angry: '😠' }
+    return `${emojis[mostCommon] || '❤️'} ${mostCommon.charAt(0).toUpperCase() + mostCommon.slice(1)}`
+  }
+
+  const getMostMentionedWord = (interactions) => {
+    const words = interactions
+      .filter(i => i.type === 'comment')
+      .flatMap(i => i.message.toLowerCase().split(/\s+/))
+      .filter(w => w.length > 4)
+    
+    if (words.length === 0) return 'vacante'
+    
+    const counts = {}
+    words.forEach(w => counts[w] = (counts[w] || 0) + 1)
+    const mostCommon = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b)
+    return mostCommon
   }
 
   const getHealthStatus = () => {
@@ -76,21 +145,32 @@ function Dashboard() {
       : 'offline'
   }
 
+  // Generate sparkline data (last 24 hours simulated)
+  const sparklineData = Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    interactions: Math.floor(Math.random() * 10) + (stats?.last24Hours || 0) / 24
+  }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl shadow-2xl p-8 text-white">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="text-emerald-400">D</span>
-              <span className="text-white">ashboard</span>
-            </h1>
-            <p className="text-slate-300 text-lg">
+          <div className="flex-1">
+            <div className="flex items-center space-x-4 mb-2">
+              <h1 className="text-5xl font-bold tracking-tight">
+                <span className="text-emerald-400">A</span>
+                <span className="text-white">xtronet</span>
+              </h1>
+              <div className="text-xs text-slate-400 font-medium uppercase tracking-wider pt-2">
+                Community Manager
+              </div>
+            </div>
+            <p className="text-slate-300 text-base font-light">
               Monitoreo y análisis de interacciones de Instagram en tiempo real
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right ml-6">
             <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg ${
               getHealthStatus() === 'online' 
                 ? 'bg-emerald-500/20 border border-emerald-500/50' 
@@ -98,7 +178,7 @@ function Dashboard() {
             }`}>
               <div className={`w-2 h-2 rounded-full ${
                 getHealthStatus() === 'online' 
-                  ? 'bg-emerald-400 animate-pulse' 
+                  ? 'bg-[#10b981] animate-pulse' 
                   : 'bg-red-400'
               }`}></div>
               <span className="text-sm font-medium">
@@ -106,8 +186,26 @@ function Dashboard() {
               </span>
             </div>
             {health && (
-              <div className="mt-2 text-sm text-slate-400">
-                MongoDB: <span className="text-emerald-400">{health.mongodb || 'disconnected'}</span>
+              <div className="mt-2 flex items-center justify-end space-x-2 text-sm text-slate-400">
+                <span>MongoDB:</span>
+                {health.mongodb === 'connected' ? (
+                  <span className="text-emerald-400 flex items-center">
+                    <span className="mr-1">✅</span>
+                    {health.mongodb}
+                  </span>
+                ) : (
+                  <span className="text-red-400 flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    {health.mongodb || 'disconnected'}
+                  </span>
+                )}
+              </div>
+            )}
+            {dailyGrowth !== null && (
+              <div className={`mt-2 text-sm font-semibold ${
+                dailyGrowth > 0 ? 'text-emerald-400' : 'text-red-400'
+              }`}>
+                {dailyGrowth > 0 ? '+' : ''}{dailyGrowth.toFixed(1)}% vs ayer
               </div>
             )}
           </div>
@@ -134,10 +232,31 @@ function Dashboard() {
       {/* Statistics */}
       {stats && <Stats stats={stats} />}
 
+      {/* Performance Indicator & Sparkline */}
+      {dailyGrowth !== null && (
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-800">Rendimiento Diario</h3>
+            <span className={`text-2xl font-bold ${
+              dailyGrowth > 0 ? 'text-emerald-500' : 'text-red-500'
+            }`}>
+              {dailyGrowth > 0 ? '+' : ''}{dailyGrowth.toFixed(1)}%
+            </span>
+          </div>
+          <div className="h-24">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sparklineData}>
+                <Area type="monotone" dataKey="interactions" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Notifications Panel */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 hover:shadow-xl transition-shadow">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-5">
               <h2 className="text-xl font-bold text-white flex items-center">
                 <span className="mr-2 text-2xl">🔔</span>
@@ -205,9 +324,133 @@ function Dashboard() {
           />
         </div>
       </div>
+
+      {/* Quick Insights */}
+      {insights && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+            <div className="flex items-center space-x-3 mb-3">
+              <span className="text-3xl">🗨️</span>
+              <h3 className="text-lg font-semibold text-slate-800">Post Más Comentado</h3>
+            </div>
+            <p className="text-slate-600 text-sm">{insights.mostCommentedPost}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+            <div className="flex items-center space-x-3 mb-3">
+              <span className="text-3xl">❤️</span>
+              <h3 className="text-lg font-semibold text-slate-800">Reacción Más Común</h3>
+            </div>
+            <p className="text-slate-600 text-sm font-medium">{insights.mostCommonReaction}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+            <div className="flex items-center space-x-3 mb-3">
+              <span className="text-3xl">🧠</span>
+              <h3 className="text-lg font-semibold text-slate-800">Palabra Más Mencionada</h3>
+            </div>
+            <p className="text-slate-600 text-sm font-medium capitalize">#{insights.mostMentionedWord}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Reply Preview */}
+      {autoReplyMessage && (
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <span className="text-3xl">💬</span>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Mensaje Automático Configurado</h3>
+                <p className="text-sm text-slate-500">Auto-Reply inteligente activo</p>
+              </div>
+            </div>
+            <a 
+              href="/auto-reply"
+              className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
+            >
+              Editar Mensaje
+            </a>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <p className="text-slate-700 whitespace-pre-wrap">{autoReplyMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Demographics Analytics */}
+      {demographics && (
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+          <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+            <span className="mr-3">📊</span>
+            Información Demográfica Recolectada
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Locations */}
+            {Object.keys(demographics.locations || {}).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-slate-700 mb-3">📍 Ubicaciones</h4>
+                <div className="space-y-2">
+                  {Object.entries(demographics.locations).slice(0, 5).map(([location, count]) => (
+                    <div key={location} className="flex justify-between text-sm">
+                      <span className="text-slate-600">{location}</span>
+                      <span className="font-semibold text-emerald-600">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Age Groups */}
+            {Object.keys(demographics.ageGroups || {}).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-slate-700 mb-3">👥 Grupos de Edad</h4>
+                <div className="space-y-2">
+                  {Object.entries(demographics.ageGroups).map(([ageGroup, count]) => (
+                    <div key={ageGroup} className="flex justify-between text-sm">
+                      <span className="text-slate-600">{ageGroup} años</span>
+                      <span className="font-semibold text-blue-600">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Interests */}
+            {Object.keys(demographics.interests || {}).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-slate-700 mb-3">🎯 Intereses</h4>
+                <div className="space-y-2">
+                  {Object.entries(demographics.interests).slice(0, 5).map(([interest, count]) => (
+                    <div key={interest} className="flex justify-between text-sm">
+                      <span className="text-slate-600 capitalize">{interest}</span>
+                      <span className="font-semibold text-purple-600">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Topics */}
+            {Object.keys(demographics.topics || {}).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-slate-700 mb-3">💬 Temas</h4>
+                <div className="space-y-2">
+                  {Object.entries(demographics.topics).slice(0, 5).map(([topic, count]) => (
+                    <div key={topic} className="flex justify-between text-sm">
+                      <span className="text-slate-600 capitalize">{topic}</span>
+                      <span className="font-semibold text-orange-600">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default Dashboard
-

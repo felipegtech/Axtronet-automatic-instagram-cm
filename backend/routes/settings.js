@@ -146,5 +146,47 @@ router.delete('/team/members/:email', async (req, res) => {
   }
 });
 
+// Update auto-reply settings
+router.put('/auto-reply', async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    console.log('📝 Actualizando auto-reply settings...');
+    console.log('   Valores recibidos:', req.body);
+    console.log('   Estado actual:', settings.autoReply);
+    
+    // Asegurar que autoReply existe
+    if (!settings.autoReply) {
+      settings.autoReply = {};
+    }
+    
+    // Actualizar solo los campos enviados
+    if (req.body.enabled !== undefined) {
+      settings.autoReply.enabled = req.body.enabled === true || req.body.enabled === 'true';
+    }
+    if (req.body.defaultTemplate !== undefined) {
+      settings.autoReply.defaultTemplate = req.body.defaultTemplate;
+    }
+    
+    await settings.save();
+    
+    console.log('✅ Auto-reply settings actualizados:');
+    console.log('   enabled:', settings.autoReply.enabled);
+    
+    res.json({
+      success: true,
+      data: settings.autoReply,
+      message: `Auto-reply ${settings.autoReply.enabled ? 'habilitado' : 'deshabilitado'} exitosamente`
+    });
+  } catch (error) {
+    console.error('❌ Error updating auto-reply settings:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Error updating auto-reply settings',
+      error: error.message
+    });
+  }
+});
+
 export default router;
 

@@ -71,6 +71,25 @@ function Interactions() {
         { message: replyText, moveToDM }
       )
       
+      // Si es DM, usar el endpoint de continuar conversación
+      if (moveToDM) {
+        // Buscar el candidato
+        try {
+          const candidatesResponse = await axios.get(`${API_BASE_URL}/api/candidates`)
+          const candidate = candidatesResponse.data.data.find(
+            c => c.instagramHandle === selectedInteraction.user.toLowerCase()
+          )
+          
+          if (candidate) {
+            await axios.post(`${API_BASE_URL}/api/candidates/${candidate._id}/continue-dm`, {
+              message: replyText
+            })
+          }
+        } catch (error) {
+          console.error('Error sending DM:', error)
+        }
+      }
+      
       // Update local state
       setInteractions(interactions.map(i => 
         i._id === selectedInteraction._id 
@@ -81,9 +100,36 @@ function Interactions() {
       setSelectedInteraction(null)
       setReplyText('')
       setAiSuggestion('')
+      alert('✅ Respuesta enviada exitosamente!')
     } catch (error) {
       console.error('Error sending reply:', error)
       alert('Error al enviar respuesta')
+    }
+  }
+
+  const handleAnalyzeInteraction = async (interactionId) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/interactions/${interactionId}/analyze`)
+      alert('✅ Interacción analizada con NLP!')
+      fetchInteractions()
+    } catch (error) {
+      console.error('Error analyzing interaction:', error)
+      alert('Error al analizar interacción')
+    }
+  }
+
+  const handleProcessAutoReply = async (interactionId) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/interactions/${interactionId}/process-auto-reply`)
+      if (response.data.result.shouldReply) {
+        alert('✅ Auto-reply enviado exitosamente!')
+      } else {
+        alert('ℹ️ Auto-reply no aplicable para esta interacción')
+      }
+      fetchInteractions()
+    } catch (error) {
+      console.error('Error processing auto-reply:', error)
+      alert('Error al procesar auto-reply')
     }
   }
 
@@ -331,6 +377,20 @@ function Interactions() {
                     >
                       📩 Move to DM
                     </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleAnalyzeInteraction(selectedInteraction._id)}
+                        className="flex-1 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                      >
+                        🧠 Analizar NLP
+                      </button>
+                      <button
+                        onClick={() => handleProcessAutoReply(selectedInteraction._id)}
+                        className="flex-1 bg-orange-600 text-white px-3 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm"
+                      >
+                        🤖 Auto-Reply
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (

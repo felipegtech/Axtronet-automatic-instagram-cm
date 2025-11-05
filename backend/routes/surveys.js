@@ -256,7 +256,7 @@ router.get('/:id/export', async (req, res) => {
   }
 });
 
-// Publish survey
+// Publish survey (simple version - use /publish-instagram for full functionality)
 router.post('/:id/publish', async (req, res) => {
   try {
     const survey = await Survey.findByIdAndUpdate(

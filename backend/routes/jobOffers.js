@@ -169,7 +169,7 @@ router.get('/:id/analytics', async (req, res) => {
   }
 });
 
-// Publish job offer
+// Publish job offer (simple version - use /publish-instagram for full functionality)
 router.post('/:id/publish', async (req, res) => {
   try {
     const jobOffer = await JobOffer.findByIdAndUpdate(
