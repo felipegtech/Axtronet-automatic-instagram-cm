@@ -154,19 +154,19 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl shadow-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 rounded-xl shadow-2xl p-8 text-white">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center space-x-4 mb-2">
               <h1 className="text-5xl font-bold tracking-tight">
-                <span className="text-emerald-400">A</span>
+                <span className="text-emerald-400 dark:text-emerald-500">A</span>
                 <span className="text-white">xtronet</span>
               </h1>
-              <div className="text-xs text-slate-400 font-medium uppercase tracking-wider pt-2">
+              <div className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider pt-2">
                 Community Manager
               </div>
             </div>
-            <p className="text-slate-300 text-base font-light">
+            <p className="text-slate-300 dark:text-slate-400 text-base font-light">
               Monitoreo y análisis de interacciones de Instagram en tiempo real
             </p>
           </div>
@@ -214,14 +214,14 @@ function Dashboard() {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-600 rounded-lg p-4 shadow-lg">
           <div className="flex items-center">
-            <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <p className="text-red-800 font-semibold">Error de conexión</p>
-              <p className="text-red-600 text-sm">
+              <p className="text-red-800 dark:text-red-300 font-semibold">Error de conexión</p>
+              <p className="text-red-600 dark:text-red-400 text-sm">
                 {error}. Asegúrate de que el servidor backend esté ejecutándose en {API_BASE_URL}
               </p>
             </div>
@@ -234,11 +234,11 @@ function Dashboard() {
 
       {/* Performance Indicator & Sparkline */}
       {dailyGrowth !== null && (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-800">Rendimiento Diario</h3>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Rendimiento Diario</h3>
             <span className={`text-2xl font-bold ${
-              dailyGrowth > 0 ? 'text-emerald-500' : 'text-red-500'
+              dailyGrowth > 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
             }`}>
               {dailyGrowth > 0 ? '+' : ''}{dailyGrowth.toFixed(1)}%
             </span>
@@ -256,8 +256,8 @@ function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Notifications Panel */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 hover:shadow-xl transition-shadow">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 p-5">
               <h2 className="text-xl font-bold text-white flex items-center">
                 <span className="mr-2 text-2xl">🔔</span>
                 Notificaciones
@@ -265,7 +265,7 @@ function Dashboard() {
             </div>
             <div className="p-4 max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
+                <div className="text-center py-12 text-slate-400 dark:text-slate-500">
                   <div className="text-5xl mb-3">🔕</div>
                   <p className="font-medium">No hay notificaciones nuevas</p>
                   <p className="text-sm mt-1">Todas las interacciones están actualizadas</p>
@@ -277,31 +277,31 @@ function Dashboard() {
                       key={notif.id}
                       className={`p-4 rounded-lg border-l-4 transition-all hover:shadow-md ${
                         notif.flagged
-                          ? 'bg-red-50 border-red-500 hover:bg-red-100'
-                          : 'bg-slate-50 border-slate-300 hover:bg-slate-100'
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-600 hover:bg-red-100 dark:hover:bg-red-900/30'
+                          : 'bg-slate-50 dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-semibold text-gray-800">
+                            <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
                               {notif.user}
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded ${
                               notif.sentiment === 'positive'
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                                 : notif.sentiment === 'negative'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                             }`}>
                               {notif.sentiment}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 line-clamp-2">
+                          <p className="text-sm text-gray-600 dark:text-slate-300 line-clamp-2">
                             {notif.message}
                           </p>
                           {notif.flagged && (
-                            <span className="text-xs text-red-600 font-semibold mt-1 block">
+                            <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1 block">
                               ⚠️ Flagged for review
                             </span>
                           )}
@@ -328,60 +328,60 @@ function Dashboard() {
       {/* Quick Insights */}
       {insights && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow">
             <div className="flex items-center space-x-3 mb-3">
               <span className="text-3xl">🗨️</span>
-              <h3 className="text-lg font-semibold text-slate-800">Post Más Comentado</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Post Más Comentado</h3>
             </div>
-            <p className="text-slate-600 text-sm">{insights.mostCommentedPost}</p>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">{insights.mostCommentedPost}</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow">
             <div className="flex items-center space-x-3 mb-3">
               <span className="text-3xl">❤️</span>
-              <h3 className="text-lg font-semibold text-slate-800">Reacción Más Común</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Reacción Más Común</h3>
             </div>
-            <p className="text-slate-600 text-sm font-medium">{insights.mostCommonReaction}</p>
+            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">{insights.mostCommonReaction}</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow">
             <div className="flex items-center space-x-3 mb-3">
               <span className="text-3xl">🧠</span>
-              <h3 className="text-lg font-semibold text-slate-800">Palabra Más Mencionada</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Palabra Más Mencionada</h3>
             </div>
-            <p className="text-slate-600 text-sm font-medium capitalize">#{insights.mostMentionedWord}</p>
+            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium capitalize">#{insights.mostMentionedWord}</p>
           </div>
         </div>
       )}
 
       {/* Auto-Reply Preview */}
       {autoReplyMessage && (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <span className="text-3xl">💬</span>
               <div>
-                <h3 className="text-lg font-semibold text-slate-800">Mensaje Automático Configurado</h3>
-                <p className="text-sm text-slate-500">Auto-Reply inteligente activo</p>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Mensaje Automático Configurado</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Auto-Reply inteligente activo</p>
               </div>
             </div>
             <a 
               href="/auto-reply"
-              className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
+              className="bg-emerald-500 dark:bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 dark:hover:bg-emerald-700 transition-colors text-sm font-medium"
             >
               Editar Mensaje
             </a>
           </div>
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <p className="text-slate-700 whitespace-pre-wrap">{autoReplyMessage}</p>
+          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
+            <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{autoReplyMessage}</p>
           </div>
         </div>
       )}
 
       {/* Demographics Analytics */}
       {demographics && (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
-          <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center">
             <span className="mr-3">📊</span>
             Información Demográfica Recolectada
           </h3>
@@ -390,12 +390,12 @@ function Dashboard() {
             {/* Locations */}
             {Object.keys(demographics.locations || {}).length > 0 && (
               <div>
-                <h4 className="font-semibold text-slate-700 mb-3">📍 Ubicaciones</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 mb-3">📍 Ubicaciones</h4>
                 <div className="space-y-2">
                   {Object.entries(demographics.locations).slice(0, 5).map(([location, count]) => (
                     <div key={location} className="flex justify-between text-sm">
-                      <span className="text-slate-600">{location}</span>
-                      <span className="font-semibold text-emerald-600">{count}</span>
+                      <span className="text-slate-600 dark:text-slate-400">{location}</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -405,12 +405,12 @@ function Dashboard() {
             {/* Age Groups */}
             {Object.keys(demographics.ageGroups || {}).length > 0 && (
               <div>
-                <h4 className="font-semibold text-slate-700 mb-3">👥 Grupos de Edad</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 mb-3">👥 Grupos de Edad</h4>
                 <div className="space-y-2">
                   {Object.entries(demographics.ageGroups).map(([ageGroup, count]) => (
                     <div key={ageGroup} className="flex justify-between text-sm">
-                      <span className="text-slate-600">{ageGroup} años</span>
-                      <span className="font-semibold text-blue-600">{count}</span>
+                      <span className="text-slate-600 dark:text-slate-400">{ageGroup} años</span>
+                      <span className="font-semibold text-blue-600 dark:text-blue-400">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -420,12 +420,12 @@ function Dashboard() {
             {/* Interests */}
             {Object.keys(demographics.interests || {}).length > 0 && (
               <div>
-                <h4 className="font-semibold text-slate-700 mb-3">🎯 Intereses</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 mb-3">🎯 Intereses</h4>
                 <div className="space-y-2">
                   {Object.entries(demographics.interests).slice(0, 5).map(([interest, count]) => (
                     <div key={interest} className="flex justify-between text-sm">
-                      <span className="text-slate-600 capitalize">{interest}</span>
-                      <span className="font-semibold text-purple-600">{count}</span>
+                      <span className="text-slate-600 dark:text-slate-400 capitalize">{interest}</span>
+                      <span className="font-semibold text-purple-600 dark:text-purple-400">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -435,12 +435,12 @@ function Dashboard() {
             {/* Topics */}
             {Object.keys(demographics.topics || {}).length > 0 && (
               <div>
-                <h4 className="font-semibold text-slate-700 mb-3">💬 Temas</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 mb-3">💬 Temas</h4>
                 <div className="space-y-2">
                   {Object.entries(demographics.topics).slice(0, 5).map(([topic, count]) => (
                     <div key={topic} className="flex justify-between text-sm">
-                      <span className="text-slate-600 capitalize">{topic}</span>
-                      <span className="font-semibold text-orange-600">{count}</span>
+                      <span className="text-slate-600 dark:text-slate-400 capitalize">{topic}</span>
+                      <span className="font-semibold text-orange-600 dark:text-orange-400">{count}</span>
                     </div>
                   ))}
                 </div>

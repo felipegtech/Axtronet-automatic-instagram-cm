@@ -11,19 +11,11 @@ import Settings from './pages/Settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-function Navigation() {
+function Navigation({ darkMode, setDarkMode }) {
   const location = useLocation()
-  const [darkMode, setDarkMode] = useState(false)
   const [newInteractionsCount, setNewInteractionsCount] = useState(0)
 
   useEffect(() => {
-    // Check for dark mode preference
-    const isDark = localStorage.getItem('darkMode') === 'true'
-    setDarkMode(isDark)
-    if (isDark) {
-      document.documentElement.classList.add('dark')
-    }
-
     // Fetch new interactions count
     const fetchNewCount = async () => {
       try {
@@ -63,19 +55,19 @@ function Navigation() {
   ]
 
   return (
-    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl mb-8 border-b border-slate-700">
+    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-xl mb-8 border-b border-slate-700 dark:border-slate-800">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="relative">
               <span className="text-4xl font-bold">
-                <span className="text-emerald-400">A</span>
+                <span className="text-emerald-400 dark:text-emerald-500">A</span>
                 <span className="text-white">xtronet</span>
               </span>
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 dark:bg-emerald-500 rounded-full animate-pulse"></div>
             </div>
             <div className="hidden md:block">
-              <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+              <div className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">
                 Community Manager
               </div>
             </div>
@@ -88,36 +80,36 @@ function Navigation() {
                   to={item.path}
                   className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
                     location.pathname === item.path
-                      ? 'text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                      ? 'text-white bg-slate-700 dark:bg-slate-800'
+                      : 'text-slate-300 dark:text-slate-400 hover:bg-slate-700 dark:hover:bg-slate-800 hover:text-white'
                   }`}
                 >
                   {location.pathname === item.path && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400 rounded-full"></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400 dark:bg-emerald-500 rounded-full"></div>
                   )}
                   <span>{item.icon}</span>
                   <span className="hidden sm:inline">{item.label}</span>
                   {item.badge && item.badge > 0 && (
-                    <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                    <span className="bg-emerald-500 dark:bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
                       {item.badge}
                     </span>
                   )}
                 </Link>
               ))}
             </div>
-            <div className="flex items-center space-x-2 ml-4 pl-4 border-l border-slate-700">
+            <div className="flex items-center space-x-2 ml-4 pl-4 border-l border-slate-700 dark:border-slate-800">
               <button
                 onClick={toggleDarkMode}
-                className="p-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                className="p-2 rounded-lg text-slate-300 dark:text-slate-400 hover:bg-slate-700 dark:hover:bg-slate-800 hover:text-white transition-colors"
                 title={darkMode ? 'Modo Claro' : 'Modo Oscuro'}
               >
                 {darkMode ? '☀️' : '🌙'}
               </button>
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center cursor-pointer hover:ring-2 ring-emerald-400 transition-all">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 dark:from-emerald-500 dark:to-teal-600 flex items-center justify-center cursor-pointer hover:ring-2 ring-emerald-400 dark:ring-emerald-500 transition-all">
                   <span className="text-white font-bold text-sm">CM</span>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 dark:bg-emerald-600 border-2 border-slate-900 dark:border-slate-950 rounded-full"></div>
               </div>
             </div>
           </div>
@@ -129,11 +121,11 @@ function Navigation() {
 
 function Footer() {
   return (
-    <footer className="mt-16 bg-slate-900 text-slate-400 py-6 border-t border-slate-800">
+    <footer className="mt-16 bg-slate-900 dark:bg-slate-950 text-slate-400 dark:text-slate-500 py-6 border-t border-slate-800 dark:border-slate-900">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between">
           <div className="text-sm">
-            © 2025 <span className="text-emerald-400 font-semibold">Axtronet</span> CM · All rights reserved
+            © 2025 <span className="text-emerald-400 dark:text-emerald-500 font-semibold">Axtronet</span> CM · All rights reserved
           </div>
           <div className="text-sm">
             Versión 1.0.0 · Community Manager Platform
@@ -145,10 +137,23 @@ function Footer() {
 }
 
 function App() {
+  const [darkMode, setDarkMode] = useState(false)
+
+  useEffect(() => {
+    // Check for dark mode preference on mount
+    const isDark = localStorage.getItem('darkMode') === 'true'
+    setDarkMode(isDark)
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [])
+
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex flex-col">
-        <Navigation />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col transition-colors duration-200">
+        <Navigation darkMode={darkMode} setDarkMode={setDarkMode} />
         <div className="container mx-auto px-6 py-8 flex-1">
           <Routes>
             <Route path="/" element={<Dashboard />} />

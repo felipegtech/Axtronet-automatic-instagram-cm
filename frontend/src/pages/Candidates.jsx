@@ -13,7 +13,8 @@ function Candidates() {
     sentiment: '',
     status: ''
   })
-  const [inviteMessage, setInviteMessage] = useState('')
+  const [dmMessage, setDmMessage] = useState('')
+  const [sendingDM, setSendingDM] = useState(false)
 
   useEffect(() => {
     fetchCandidates()
@@ -40,16 +41,16 @@ function Candidates() {
   }
 
   const handleInvite = async (candidateId) => {
-    if (!inviteMessage.trim()) {
+    if (!dmMessage.trim()) {
       alert('Please enter a message')
       return
     }
 
     try {
       await axios.post(`${API_BASE_URL}/api/candidates/${candidateId}/invite`, {
-        message: inviteMessage
+        message: dmMessage
       })
-      setInviteMessage('')
+      setDmMessage('')
       setSelectedCandidate(null)
       fetchCandidates()
       alert('Invitation sent successfully!')
@@ -60,15 +61,29 @@ function Candidates() {
   }
 
   const handleContinueDM = async (candidateId, message) => {
+    if (!message || !message.trim()) {
+      alert('Please enter a message to continue the conversation')
+      return
+    }
+
+    setSendingDM(true)
     try {
-      await axios.post(`${API_BASE_URL}/api/candidates/${candidateId}/continue-dm`, {
+      const response = await axios.post(`${API_BASE_URL}/api/candidates/${candidateId}/continue-dm`, {
         message: message
       })
+      
+      // Refresh candidate data to show updated conversation
+      const candidateResponse = await axios.get(`${API_BASE_URL}/api/candidates/${candidateId}`)
+      setSelectedCandidate(candidateResponse.data.data)
+      setDmMessage('')
       fetchCandidates()
-      alert('Mensaje DM enviado exitosamente!')
+      alert('✅ Mensaje DM enviado exitosamente!')
     } catch (error) {
       console.error('Error sending DM:', error)
-      alert('Error al enviar el DM')
+      const errorMsg = error.response?.data?.error || error.message || 'Error desconocido'
+      alert(`❌ Error al enviar el DM: ${errorMsg}`)
+    } finally {
+      setSendingDM(false)
     }
   }
 
@@ -78,6 +93,10 @@ function Candidates() {
         status: newStatus
       })
       fetchCandidates()
+      // Update selected candidate if it's the one being updated
+      if (selectedCandidate && selectedCandidate._id === candidateId) {
+        setSelectedCandidate({ ...selectedCandidate, status: newStatus })
+      }
     } catch (error) {
       console.error('Error updating status:', error)
       alert('Error al actualizar el estado')
@@ -86,19 +105,25 @@ function Candidates() {
 
   const getStatusColor = (status) => {
     const colors = {
-      'new': 'bg-blue-100 text-blue-800',
-      'contacted': 'bg-yellow-100 text-yellow-800',
-      'interviewed': 'bg-purple-100 text-purple-800',
-      'hired': 'bg-green-100 text-green-800',
-      'rejected': 'bg-red-100 text-red-800'
+      'new': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+      'contacted': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+      'interviewed': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+      'hired': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+      'rejected': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return colors[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+  }
+
+  // Get last conversation message for quick reference
+  const getLastConversation = (candidate) => {
+    if (!candidate.conversations || candidate.conversations.length === 0) return null
+    return candidate.conversations[candidate.conversations.length - 1]
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-6 flex items-center">
           <span className="mr-3">👥</span>
           Candidates / Users Section
         </h1>
@@ -106,13 +131,13 @@ function Candidates() {
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Interest Area
             </label>
             <select
               value={filters.interestArea}
               onChange={(e) => setFilters({ ...filters, interestArea: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All</option>
               <option value="development">Development</option>
@@ -123,13 +148,13 @@ function Candidates() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Reaction Type
             </label>
             <select
               value={filters.reactionType}
               onChange={(e) => setFilters({ ...filters, reactionType: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All</option>
               <option value="like">❤️ Like</option>
@@ -139,13 +164,13 @@ function Candidates() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Sentiment
             </label>
             <select
               value={filters.sentiment}
               onChange={(e) => setFilters({ ...filters, sentiment: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All</option>
               <option value="positive">Positive</option>
@@ -155,13 +180,13 @@ function Candidates() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Status
             </label>
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All</option>
               <option value="new">New</option>
@@ -176,86 +201,100 @@ function Candidates() {
         {/* Candidates List */}
         {loading ? (
           <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading candidates...</p>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+            <p className="mt-4 text-gray-600 dark:text-slate-400">Loading candidates...</p>
           </div>
         ) : candidates.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-slate-400">
             <div className="text-6xl mb-4">👤</div>
             <p className="text-lg">No candidates found</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {candidates.map((candidate) => (
-              <div
-                key={candidate._id}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">
-                        {candidate.instagramHandle.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          @{candidate.instagramHandle}
-                        </h3>
-                        {candidate.name && (
-                          <span className="text-gray-600">({candidate.name})</span>
-                        )}
-                        <span className={`text-xs px-2 py-1 rounded ${getStatusColor(candidate.status)}`}>
-                          {candidate.status}
+            {candidates.map((candidate) => {
+              const lastConv = getLastConversation(candidate)
+              return (
+                <div
+                  key={candidate._id}
+                  className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-600 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center">
+                        <span className="text-white text-lg font-bold">
+                          {candidate.instagramHandle.charAt(0).toUpperCase()}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        <span>Score: <strong>{candidate.engagementScore}</strong></span>
-                        {candidate.interestAreas.length > 0 && (
-                          <span>
-                            Interests: {candidate.interestAreas.join(', ')}
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
+                            @{candidate.instagramHandle}
+                          </h3>
+                          {candidate.name && (
+                            <span className="text-gray-600 dark:text-slate-400">({candidate.name})</span>
+                          )}
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(candidate.status)}`}>
+                            {candidate.status}
                           </span>
-                        )}
+                        </div>
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600 dark:text-slate-400">
+                          <span>Score: <strong>{candidate.engagementScore}</strong></span>
+                          {candidate.interestAreas && candidate.interestAreas.length > 0 && (
+                            <span>
+                              Interests: {candidate.interestAreas.join(', ')}
+                            </span>
+                          )}
+                          {lastConv && (
+                            <span className="text-xs text-gray-500 dark:text-slate-500">
+                              Last: {lastConv.type} • {new Date(lastConv.timestamp).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setSelectedCandidate(candidate)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      View Profile
-                    </button>
-                    <select
-                      value={candidate.status}
-                      onChange={(e) => handleStatusChange(candidate._id, e.target.value)}
-                      className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    >
-                      <option value="new">New</option>
-                      <option value="contacted">Contacted</option>
-                      <option value="interviewed">Interviewed</option>
-                      <option value="hired">Hired</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedCandidate(candidate)
+                          setDmMessage('')
+                        }}
+                        className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
+                      >
+                        View Profile
+                      </button>
+                      <select
+                        value={candidate.status}
+                        onChange={(e) => handleStatusChange(candidate._id, e.target.value)}
+                        className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-100"
+                      >
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="interviewed">Interviewed</option>
+                        <option value="hired">Hired</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
 
       {/* Profile View Modal */}
       {selectedCandidate && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">
               Profile: @{selectedCandidate.instagramHandle}
             </h2>
             <button
-              onClick={() => setSelectedCandidate(null)}
-              className="text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                setSelectedCandidate(null)
+                setDmMessage('')
+              }}
+              className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
             >
               ✕
             </button>
@@ -263,96 +302,114 @@ function Candidates() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h3 className="text-lg font-semibold mb-3">📋 Information</h3>
-              <div className="space-y-2">
-                <p><strong>Name:</strong> {candidate.name || 'N/A'}</p>
-                <p><strong>Email:</strong> {candidate.email || 'N/A'}</p>
-                <p><strong>Phone:</strong> {candidate.phone || 'N/A'}</p>
-                <p><strong>Engagement Score:</strong> {selectedCandidate.engagementScore}/100</p>
-                <p><strong>Status:</strong> {selectedCandidate.status}</p>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-slate-100">📋 Information</h3>
+              <div className="space-y-2 text-sm">
+                <p className="text-gray-700 dark:text-slate-300"><strong>Name:</strong> {selectedCandidate.name || 'N/A'}</p>
+                <p className="text-gray-700 dark:text-slate-300"><strong>Email:</strong> {selectedCandidate.email || 'N/A'}</p>
+                <p className="text-gray-700 dark:text-slate-300"><strong>Phone:</strong> {selectedCandidate.phone || 'N/A'}</p>
+                <p className="text-gray-700 dark:text-slate-300"><strong>Engagement Score:</strong> {selectedCandidate.engagementScore}/100</p>
+                <p className="text-gray-700 dark:text-slate-300"><strong>Status:</strong> {selectedCandidate.status}</p>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-3">💼 Job Interests</h3>
-              {selectedCandidate.jobOfferInterest.length > 0 ? (
+              <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-slate-100">💼 Job Interests</h3>
+              {selectedCandidate.jobOfferInterest && selectedCandidate.jobOfferInterest.length > 0 ? (
                 <div className="space-y-2">
                   {selectedCandidate.jobOfferInterest.map((interest, index) => (
-                    <div key={index} className="bg-gray-50 p-2 rounded">
-                      <p className="text-sm">
+                    <div key={index} className="bg-gray-50 dark:bg-slate-700/50 p-2 rounded">
+                      <p className="text-sm text-gray-700 dark:text-slate-300">
                         Interest Level: <strong>{interest.interestLevel}</strong>
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No job interests yet</p>
+                <p className="text-gray-500 dark:text-slate-400">No job interests yet</p>
               )}
             </div>
           </div>
 
+          {/* Conversation History */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">💬 Conversation History</h3>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {selectedCandidate.conversations.length > 0 ? (
+            <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-slate-100">💬 Conversation History</h3>
+            <div className="space-y-3 max-h-64 overflow-y-auto bg-gray-50 dark:bg-slate-700/30 p-4 rounded-lg">
+              {selectedCandidate.conversations && selectedCandidate.conversations.length > 0 ? (
                 selectedCandidate.conversations.map((conv, index) => (
-                  <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                  <div key={index} className={`p-3 rounded-lg border-l-4 ${
+                    conv.type === 'dm' 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600' 
+                      : 'bg-gray-50 dark:bg-slate-700/50 border-gray-300 dark:border-slate-600'
+                  }`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold">{conv.type}</span>
+                      <span className="text-sm font-semibold text-gray-800 dark:text-slate-200 capitalize">
+                        {conv.type === 'dm' ? '💬 Direct Message' : '💬 Comment Reply'}
+                      </span>
                       <span className={`text-xs px-2 py-0.5 rounded ${
                         conv.sentiment === 'positive'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                           : conv.sentiment === 'negative'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                       }`}>
                         {conv.sentiment}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">{conv.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-gray-700 dark:text-slate-300">{conv.message}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       {new Date(conv.timestamp).toLocaleString()}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500">No conversations yet</p>
+                <p className="text-gray-500 dark:text-slate-400 text-center py-4">No conversations yet</p>
               )}
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold mb-3">📩 Send Invitation</h3>
+          {/* DM Follow-up Section */}
+          <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-slate-100">💬 Continue DM Conversation</h3>
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-4">
+              <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                <strong>💡 Tip:</strong> Use this to follow up with the user. Your message will be sent as a direct message on Instagram.
+              </p>
+            </div>
             <textarea
-              value={inviteMessage}
-              onChange={(e) => setInviteMessage(e.target.value)}
-              placeholder="Enter invitation message..."
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={dmMessage}
+              onChange={(e) => setDmMessage(e.target.value)}
+              placeholder="Escribe tu mensaje para continuar la conversación por DM..."
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg mb-3 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
-            <div className="space-y-2">
-              <textarea
-                value={inviteMessage}
-                onChange={(e) => setInviteMessage(e.target.value)}
-                placeholder="Escribe tu mensaje para continuar la conversación..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleInvite(selectedCandidate._id)}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  📩 Enviar Invitación
-                </button>
-                <button
-                  onClick={() => handleContinueDM(selectedCandidate._id, inviteMessage)}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-                  disabled={!inviteMessage.trim()}
-                >
-                  💬 Continuar DM
-                </button>
-              </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleContinueDM(selectedCandidate._id, dmMessage)}
+                disabled={!dmMessage.trim() || sendingDM}
+                className="bg-emerald-600 dark:bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center space-x-2"
+              >
+                {sendingDM ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💬</span>
+                    <span>Send DM</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleInvite(selectedCandidate._id)}
+                disabled={!dmMessage.trim() || sendingDM}
+                className="bg-purple-600 dark:bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                📩 Send Invitation
+              </button>
             </div>
           </div>
         </div>
@@ -362,4 +419,3 @@ function Candidates() {
 }
 
 export default Candidates
-

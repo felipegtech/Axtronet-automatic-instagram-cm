@@ -117,14 +117,14 @@ function Settings() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-6 flex items-center">
           <span className="mr-3">⚙️</span>
           Settings
         </h1>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
+        <div className="border-b border-gray-200 dark:border-slate-700 mb-6">
           <div className="flex space-x-4">
             {tabs.map((tab) => (
               <button
@@ -132,8 +132,8 @@ function Settings() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'border-b-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
                 }`}
               >
                 {tab.label}
@@ -149,7 +149,7 @@ function Settings() {
               <h2 className="text-xl font-semibold mb-4">Instagram API Integration</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     API Token
                   </label>
                   <input
@@ -157,11 +157,11 @@ function Settings() {
                     defaultValue={settings.instagram?.apiToken || ''}
                     onBlur={(e) => updateInstagramSettings({ apiToken: e.target.value })}
                     placeholder="Enter Instagram API token"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Page Access Token <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -217,7 +217,7 @@ function Settings() {
               <h2 className="text-xl font-semibold mb-4">Webhook Configuration</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Webhook URL
                   </label>
                   <input
@@ -225,14 +225,14 @@ function Settings() {
                     defaultValue={settings.instagram?.webhookUrl || ''}
                     onBlur={(e) => updateInstagramSettings({ webhookUrl: e.target.value })}
                     placeholder="https://yourdomain.com/webhook"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Current webhook endpoint: {window.location.origin}/webhook
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Webhook Secret
                   </label>
                   <input
@@ -240,11 +240,11 @@ function Settings() {
                     defaultValue={settings.instagram?.webhookSecret || ''}
                     onBlur={(e) => updateInstagramSettings({ webhookSecret: e.target.value })}
                     placeholder="Enter webhook secret"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Verify Token
                   </label>
                   <input
@@ -252,7 +252,7 @@ function Settings() {
                     defaultValue={settings.instagram?.verifyToken || ''}
                     onBlur={(e) => updateInstagramSettings({ verifyToken: e.target.value })}
                     placeholder="Enter verify token"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -395,7 +395,7 @@ function Settings() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Email for Notifications
                   </label>
                   <input
@@ -403,7 +403,7 @@ function Settings() {
                     defaultValue={settings.notifications?.email || ''}
                     onBlur={(e) => updateNotificationSettings({ email: e.target.value })}
                     placeholder="email@example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -422,7 +422,7 @@ function Settings() {
                 <h3 className="text-lg font-semibold mb-3">Add Team Member</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Email *
                     </label>
                     <input
@@ -430,17 +430,17 @@ function Settings() {
                       value={newMember.email}
                       onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                       placeholder="member@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Role
                     </label>
                     <select
                       value={newMember.role}
                       onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="manager">Manager</option>
@@ -449,7 +449,7 @@ function Settings() {
                   </div>
                 </div>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Permissions
                   </label>
                   <div className="grid grid-cols-2 gap-2">

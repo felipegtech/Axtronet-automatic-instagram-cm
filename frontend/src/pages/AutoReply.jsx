@@ -27,7 +27,12 @@ function AutoReply() {
     username: 'username',
     post_title: 'Post Title',
     sentiment: 'neutral',
-    company_name: 'Company'
+    company_name: 'Company',
+    smart_reply: '¡Gracias por tu interés! 🚀',
+    original_comment: 'Hola, estoy interesado en la vacante',
+    topics: 'salario, horario',
+    job_keywords: 'vacante, remoto',
+    priority: 'medium'
   })
 
   useEffect(() => {
@@ -114,6 +119,20 @@ function AutoReply() {
     })
   }
 
+  const handleSetDefault = async (template) => {
+    try {
+      await axios.put(`${API_BASE_URL}/api/auto-reply/templates/${template._id}`, {
+        isDefault: true
+      })
+
+      fetchTemplates()
+      alert(`La plantilla "${template.name}" es ahora la predeterminada`)
+    } catch (error) {
+      console.error('Error setting default template:', error)
+      alert('No se pudo establecer la plantilla predeterminada')
+    }
+  }
+
   const generatePreview = async () => {
     if (!selectedTemplate) return
 
@@ -140,9 +159,9 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center">
             <span className="mr-3">💬🤖</span>
             Auto-Reply Message Center
           </h1>
@@ -163,7 +182,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                 }
               })
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             + Create Template
           </button>
@@ -171,13 +190,13 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
 
         {/* Create/Edit Form */}
         {showForm && (
-          <div className="mb-6 p-6 bg-gray-50 rounded-lg border-2 border-blue-200">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className="mb-6 p-6 bg-gray-50 dark:bg-slate-700/50 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-slate-100">
               {editingTemplate ? 'Edit Template' : 'Create New Template'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Template Name *
                 </label>
                 <input
@@ -185,15 +204,15 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Message Template *
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Variables: {'{username}'}, {'{post_title}'}, {'{sentiment}'}, {'{company_name}'}
+                  Variables disponibles: {'{username}'}, {'{post_title}'}, {'{sentiment}'}, {'{company_name}'}, {'{smart_reply}'}, {'{original_comment}'}, {'{topics}'}, {'{job_keywords}'}, {'{priority}'}
                 </p>
                 <textarea
                   value={formData.template}
@@ -204,13 +223,13 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Category
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="general">General</option>
                   <option value="job_interest">Job Interest</option>
@@ -225,7 +244,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                 <h3 className="text-lg font-semibold mb-3">⚙️ Smart Rules</h3>
                 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Keywords (one per line)
                   </label>
                   <div className="flex space-x-2 mb-2">
@@ -266,7 +285,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Sentiment Filter
                     </label>
                     <select
@@ -275,7 +294,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                         ...formData,
                         smartRules: { ...formData.smartRules, sentiment: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="any">Any</option>
                       <option value="positive">Positive</option>
@@ -284,7 +303,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Trigger On
                     </label>
                     <select
@@ -293,7 +312,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                         ...formData,
                         smartRules: { ...formData.smartRules, triggerOn: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="always">Always</option>
                       <option value="keyword">Keyword</option>
@@ -328,7 +347,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
               <div className="flex space-x-3">
                 <button
                   type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                 >
                   {editingTemplate ? 'Update' : 'Create'}
                 </button>
@@ -359,16 +378,16 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
             <p className="text-lg">No templates yet</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {templates.map((template) => (
               <div
                 key={template._id}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-600"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{template.name}</h3>
-                    <span className="text-xs text-gray-500">{template.category}</span>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">{template.name}</h3>
+                <span className="text-xs text-gray-500 dark:text-slate-400">{template.category}</span>
                   </div>
                   <div className="flex space-x-2">
                     {template.isDefault && (
@@ -387,7 +406,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-3">{template.template}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300 mb-3 line-clamp-3">{template.template}</p>
                 {template.smartRules.keywords.length > 0 && (
                   <div className="mb-3">
                     <p className="text-xs text-gray-500 mb-1">Keywords:</p>
@@ -409,6 +428,14 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                   >
                     Preview
                   </button>
+                  {!template.isDefault && (
+                    <button
+                      onClick={() => handleSetDefault(template)}
+                      className="bg-emerald-600 text-white px-3 py-1 rounded text-sm hover:bg-emerald-700 transition-colors"
+                    >
+                      Predeterminada
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setEditingTemplate(template)
@@ -418,7 +445,11 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                         category: template.category,
                         isActive: template.isActive,
                         isDefault: template.isDefault,
-                        smartRules: template.smartRules
+                        smartRules: {
+                          keywords: [...(template.smartRules?.keywords || [])],
+                          sentiment: template.smartRules?.sentiment || 'any',
+                          triggerOn: template.smartRules?.triggerOn || 'always'
+                        }
                       })
                       setShowForm(true)
                     }}
@@ -464,7 +495,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                     type="text"
                     value={previewVars.username}
                     onChange={(e) => setPreviewVars({ ...previewVars, username: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -475,7 +506,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                     type="text"
                     value={previewVars.post_title}
                     onChange={(e) => setPreviewVars({ ...previewVars, post_title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -485,7 +516,7 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                   <select
                     value={previewVars.sentiment}
                     onChange={(e) => setPreviewVars({ ...previewVars, sentiment: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="positive">Positive</option>
                     <option value="neutral">Neutral</option>
@@ -500,8 +531,70 @@ Nuestro equipo revisará tu perfil y te contactaremos pronto. 🚀`
                     type="text"
                     value={previewVars.company_name}
                     onChange={(e) => setPreviewVars({ ...previewVars, company_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Smart Reply (auto sugerido)
+                  </label>
+                  <textarea
+                    value={previewVars.smart_reply}
+                    onChange={(e) => setPreviewVars({ ...previewVars, smart_reply: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Comentario original
+                  </label>
+                  <textarea
+                    value={previewVars.original_comment}
+                    onChange={(e) => setPreviewVars({ ...previewVars, original_comment: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Temas detectados
+                    </label>
+                    <input
+                      type="text"
+                      value={previewVars.topics}
+                      onChange={(e) => setPreviewVars({ ...previewVars, topics: e.target.value })}
+                      placeholder="salario, horario"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Palabras clave trabajo
+                    </label>
+                    <input
+                      type="text"
+                      value={previewVars.job_keywords}
+                      onChange={(e) => setPreviewVars({ ...previewVars, job_keywords: e.target.value })}
+                      placeholder="vacante, remoto"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prioridad detectada
+                  </label>
+                  <select
+                    value={previewVars.priority}
+                    onChange={(e) => setPreviewVars({ ...previewVars, priority: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
                 </div>
               </div>
             </div>

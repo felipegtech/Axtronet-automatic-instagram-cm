@@ -34,6 +34,9 @@ class AutoReplyService {
       }
       
       console.log(`   ✅ Auto-reply está HABILITADO`);
+      const defaultTemplateId = settings.autoReply?.defaultTemplate
+        ? settings.autoReply.defaultTemplate.toString()
+        : null;
 
       // Solo procesar comentarios (no reacciones)
       console.log(`   Tipo de interacción: ${interaction.type}`);
@@ -106,60 +109,73 @@ class AutoReplyService {
       console.log(`   ✅ Templates disponibles: ${activeTemplates.map(t => t.name).join(', ')}`);
 
       // Buscar template apropiado
-      let selectedTemplate = null;
+      let selectedTemplate = await this.selectTemplate(activeTemplates, {
+        interaction,
+        analysis,
+        defaultTemplateId
+      });
 
-      // Buscar por reglas inteligentes
-      for (const template of activeTemplates) {
-        const rules = template.smartRules;
-        
-        // Verificar keywords (solo si triggerOn es 'keyword' o 'both')
-        if (rules.triggerOn === 'keyword' || rules.triggerOn === 'both') {
-          const hasKeyword = rules.keywords.length === 0 || rules.keywords.some(keyword => 
-            interaction.message.toLowerCase().includes(keyword.toLowerCase())
-          );
-          if (!hasKeyword && rules.triggerOn === 'keyword') continue;
+      // Si no hay template específico, usar fallback general
+      if (!selectedTemplate && defaultTemplateId) {
+        try {
+          selectedTemplate = await AutoReplyTemplate.findById(defaultTemplateId);
+        } catch (error) {
+          console.error('Error obteniendo template por defecto:', error);
         }
-
-        // Verificar sentimiento (solo si triggerOn es 'sentiment' o 'both')
-        if (rules.triggerOn === 'sentiment' || rules.triggerOn === 'both') {
-          if (rules.sentiment !== 'any' && analysis.sentiment !== rules.sentiment) {
-            if (rules.triggerOn === 'sentiment') continue;
-          }
-        }
-
-        selectedTemplate = template;
-        break;
       }
 
-      // Si no hay template específico, usar el default o el primero
       if (!selectedTemplate) {
         selectedTemplate = activeTemplates.find(t => t.isDefault) || activeTemplates[0];
+      }
+
+      if (selectedTemplate) {
         console.log(`📝 Usando template: ${selectedTemplate.name}`);
       }
 
       // Generar mensaje personalizado
       let message = this.generatePersonalizedMessage(selectedTemplate, interaction, analysis);
+      const smartResponseMessage = analysis.smartResponse?.message || '';
       
-      // Si el mensaje está vacío o es el template sin procesar, usar mensaje por defecto
-      if (!message || message === selectedTemplate.template && !message.includes('@')) {
-        message = `¡Gracias por comentar! 😊`;
+      if (!message || !message.trim()) {
+        message = smartResponseMessage || `¡Gracias por comentar! 😊`;
       }
 
-      // Responder automáticamente a TODOS los comentarios (configuración por defecto)
-      // Para comentarios negativos, usar un mensaje más cuidadoso pero aún responder
-      let finalMessage = message;
-      if (analysis.sentiment === 'negative') {
-        console.log('⚠️ Comentario negativo detectado, usando mensaje de atención especial');
-        // Usar mensaje más neutral para comentarios negativos
-        finalMessage = 'Hola @' + interaction.user + '! 👋 Lamentamos tu experiencia. Por favor, contáctanos por DM para resolver esto de manera personalizada. 🙏';
+      if (
+        smartResponseMessage &&
+        message === selectedTemplate.template &&
+        !selectedTemplate.template.includes('{smart_reply}')
+      ) {
+        message = smartResponseMessage;
       }
 
-      // Decidir si mover a DM o responder como comentario
-      // Por defecto, responder como comentario (más simple y directo)
-      const shouldMoveToDM = false; // Siempre responder como comentario para simplicidad
-      // Si quieres activar DM automático para casos especiales, descomenta:
-      // const shouldMoveToDM = analysis.smartResponse.shouldMoveToDM || 
-      //                       (analysis.jobInterest && analysis.sentiment === 'positive');
+      if (!message.includes(`@${interaction.user}`)) {
+        const userRegex = new RegExp(`\\b${interaction.user}\\b`, 'gi');
+        if (userRegex.test(message)) {
+          message = message.replace(userRegex, `@${interaction.user}`);
+        } else {
+          message = `@${interaction.user} ${message}`.trim();
+        }
+      }
+
+      let finalMessage = message.trim();
+
+      if (
+        analysis.sentiment === 'negative' &&
+        (!selectedTemplate || selectedTemplate.category !== 'inquiry') &&
+        (!finalMessage || finalMessage === '¡Gracias por comentar! 😊')
+      ) {
+        console.log('⚠️ Comentario negativo detectado, aplicando mensaje de empatía por defecto');
+        finalMessage = `Hola @${interaction.user}! 👋 Lamentamos tu experiencia. Por favor, contáctanos por DM para resolver esto de manera personalizada. 🙏`;
+      }
+
+      let shouldMoveToDM = Boolean(analysis.smartResponse?.shouldMoveToDM);
+      if (
+        shouldMoveToDM === false &&
+        analysis.sentiment === 'negative' &&
+        (!selectedTemplate || selectedTemplate.category === 'inquiry')
+      ) {
+        shouldMoveToDM = true;
+      }
 
       try {
         console.log(`\n   📤 Enviando respuesta...`);
@@ -252,11 +268,36 @@ class AutoReplyService {
     message = message.replace(/@{username}/g, `@${interaction.user}`); // Si ya tiene @
     message = message.replace(/{sentiment}/g, analysis.sentiment);
     message = message.replace(/{company_name}/g, 'Axtronet');
+    message = message.replace(
+      /{post_title}/g,
+      interaction.metadata?.postTitle || interaction.metadata?.post || interaction.postId || 'Publicación'
+    );
+    message = message.replace(
+      /{smart_reply}/g,
+      analysis.smartResponse?.message || ''
+    );
+    message = message.replace(
+      /{original_comment}/g,
+      interaction.message || ''
+    );
+    message = message.replace(
+      /{topics}/g,
+      (analysis.topics && analysis.topics.length > 0) ? analysis.topics.join(', ') : ''
+    );
+    message = message.replace(
+      /{job_keywords}/g,
+      (analysis.jobKeywords && analysis.jobKeywords.length > 0) ? analysis.jobKeywords.join(', ') : ''
+    );
+    message = message.replace(
+      /{priority}/g,
+      analysis.priority || 'medium'
+    );
 
-    // Si hay post relacionado
-    if (interaction.postId) {
-      message = message.replace(/{post_title}/g, 'Oferta Laboral');
-    }
+    // Limpiar dobles espacios resultantes de placeholders vacíos sin eliminar saltos de línea
+    message = message
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     // Si el template no tiene variables, asegurar que tenga el mensaje básico
     if (message === template.template && !message.includes('@')) {
@@ -264,6 +305,150 @@ class AutoReplyService {
     }
 
     return message;
+  }
+
+  calculateTemplateScore(template, context) {
+    if (!template) return Number.NEGATIVE_INFINITY;
+
+    const rules = template.smartRules || {};
+    const keywords = Array.isArray(rules.keywords) ? rules.keywords : [];
+    const triggerOn = rules.triggerOn || 'always';
+    const messageLower = context.messageLower || '';
+
+    const matchedKeywords = keywords.filter(keyword =>
+      keyword && messageLower.includes(keyword.toLowerCase())
+    );
+
+    if (
+      (triggerOn === 'keyword' || triggerOn === 'both') &&
+      keywords.length > 0 &&
+      matchedKeywords.length === 0
+    ) {
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    if (
+      (triggerOn === 'sentiment' || triggerOn === 'both') &&
+      rules.sentiment &&
+      rules.sentiment !== 'any' &&
+      rules.sentiment !== context.sentiment
+    ) {
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    let score = 0;
+
+    if (matchedKeywords.length > 0) {
+      score += 6 + matchedKeywords.length * 2;
+    } else if (keywords.length === 0) {
+      score += 2;
+    }
+
+    if (rules.sentiment && rules.sentiment !== 'any' && rules.sentiment === context.sentiment) {
+      score += 6;
+    }
+
+    const jobKeywordMatches = (context.jobKeywords || []).filter(keyword =>
+      keywords.includes(keyword)
+    );
+    if (jobKeywordMatches.length > 0) {
+      score += jobKeywordMatches.length * 2;
+    }
+
+    if (context.jobInterest && template.category === 'job_interest') {
+      score += 8;
+    }
+
+    if (context.sentiment === 'positive' && template.category === 'thanks') {
+      score += 3;
+    }
+
+    if (context.sentiment === 'negative' && template.category === 'inquiry') {
+      score += 3;
+    }
+
+    if (context.requiresFollowup && template.category === 'inquiry') {
+      score += 4;
+    }
+
+    if (context.containsQuestion && template.category === 'inquiry') {
+      score += 2;
+    }
+
+    if (template.category === 'custom' && matchedKeywords.length > 0) {
+      score += 2;
+    }
+
+    if (template.category === 'general') {
+      score += 1;
+    }
+
+    if (
+      context.defaultTemplateId &&
+      template._id &&
+      template._id.toString() === context.defaultTemplateId
+    ) {
+      score += 2;
+    }
+
+    if (template.isDefault) {
+      score += 1;
+    }
+
+    if (triggerOn === 'always') {
+      score += 1;
+    }
+
+    return score;
+  }
+
+  async selectTemplate(templates, { interaction, analysis, defaultTemplateId }) {
+    if (!templates || templates.length === 0) {
+      return null;
+    }
+
+    const scoringContext = {
+      messageLower: (interaction.message || '').toLowerCase(),
+      sentiment: analysis.sentiment,
+      jobInterest: analysis.jobInterest,
+      jobKeywords: analysis.jobKeywords || [],
+      topics: analysis.topics || [],
+      requiresFollowup: Boolean(analysis.smartResponse?.shouldMoveToDM),
+      containsQuestion: /\?|¿/.test(interaction.message || ''),
+      defaultTemplateId
+    };
+
+    const scoredTemplates = templates
+      .map(template => ({
+        template,
+        score: this.calculateTemplateScore(template, scoringContext)
+      }))
+      .filter(entry => entry.score !== Number.NEGATIVE_INFINITY)
+      .sort((a, b) => b.score - a.score);
+
+    if (scoredTemplates.length > 0 && scoredTemplates[0].score !== Number.NEGATIVE_INFINITY) {
+      return scoredTemplates[0].template;
+    }
+
+    if (defaultTemplateId) {
+      const defaultInList = templates.find(
+        template => template._id && template._id.toString() === defaultTemplateId
+      );
+      if (defaultInList) {
+        return defaultInList;
+      }
+
+      try {
+        const defaultTemplate = await AutoReplyTemplate.findById(defaultTemplateId);
+        if (defaultTemplate) {
+          return defaultTemplate;
+        }
+      } catch (error) {
+        console.error('Error buscando template por defecto:', error.message);
+      }
+    }
+
+    return templates.find(template => template.isDefault) || templates[0] || null;
   }
 
   // Enviar DM

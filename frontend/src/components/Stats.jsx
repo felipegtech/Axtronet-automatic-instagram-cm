@@ -46,16 +46,16 @@ function Stats({ stats }) {
         {statCards.map((stat, index) => (
           <div 
             key={index}
-            className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl hover:border-emerald-300 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-emerald-300 dark:hover:border-emerald-600 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-4xl">{stat.icon}</span>
               <div className={`${stat.color} w-2 h-16 rounded-t-full opacity-80`}></div>
             </div>
-            <div className="text-slate-600 text-sm font-semibold mb-2 uppercase tracking-wide">
+            <div className="text-slate-600 dark:text-slate-400 text-sm font-semibold mb-2 uppercase tracking-wide">
               {stat.title}
             </div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+            <div className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
               {stat.value}
             </div>
           </div>
@@ -63,10 +63,10 @@ function Stats({ stats }) {
       </div>
 
       {sentimentData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 border border-slate-200 dark:border-slate-700">
           <div className="flex items-center space-x-3 mb-6">
             <span className="text-3xl">💬</span>
-            <h3 className="text-2xl font-bold text-slate-800">Análisis de Sentimiento</h3>
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Análisis de Sentimiento</h3>
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
